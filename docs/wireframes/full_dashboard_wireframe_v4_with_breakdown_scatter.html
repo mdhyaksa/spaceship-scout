@@ -1,0 +1,141 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Full dashboard wireframe with nav rail, filter bar, four KPI cards, delivery performance composition, order volume and transit time charts, a switchable breakdown scatter of volume against on-time rate, and the chat drawer.</h2>
+
+<div style="background:#F6F6F8;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:flex-start">
+
+<div style="width:112px;flex:none;background:#141414;border-radius:10px;padding:12px 9px">
+<div style="display:flex;align-items:center;gap:7px;margin:0 0 14px;padding:0 3px"><span style="width:14px;height:14px;background:#10F080;border-radius:3px;display:inline-block"></span><span style="font-size:12px;font-weight:500;color:#F3F3F3">Manifest</span></div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.10)"><i class="ti ti-home" style="font-size:14px;color:#F3F3F3" aria-hidden="true"></i><span style="font-size:11px;font-weight:500;color:#F3F3F3">Overview</span></div>
+<div style="display:flex;align-items:center;gap:7px;padding:6px 8px"><i class="ti ti-truck" style="font-size:14px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Carriers</span></div>
+<div style="display:flex;align-items:center;gap:7px;padding:6px 8px"><i class="ti ti-route" style="font-size:14px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Lanes</span></div>
+<div style="display:flex;align-items:center;gap:7px;padding:6px 8px"><i class="ti ti-users" style="font-size:14px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Clients</span></div>
+<div style="display:flex;align-items:center;gap:7px;padding:6px 8px"><i class="ti ti-chart-line" style="font-size:14px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Forecast</span></div>
+</div>
+<p style="font-size:10px;color:#6E6E74;margin:15px 0 6px;padding:0 3px">Saved views</p>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 8px"><i class="ti ti-bookmark" style="font-size:13px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Ops daily</span></div>
+<div style="display:flex;align-items:center;gap:7px;padding:5px 8px"><i class="ti ti-bookmark" style="font-size:13px;color:#9A9AA0" aria-hidden="true"></i><span style="font-size:11px;color:#9A9AA0">Client QBR</span></div>
+<div style="border-top:0.5px solid rgba(255,255,255,0.13);margin-top:13px;padding-top:9px"><p style="font-size:10px;color:#6E6E74;margin:0;line-height:1.5">Data through<br>30 Dec 2025</p></div>
+</div>
+
+<div style="flex:1;min-width:0">
+
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+<span style="font-size:11px;padding:4px 10px;border:0.5px solid rgba(20,20,20,0.14);border-radius:20px;color:#141414;background:#FFFFFF">All 2025</span>
+<span style="font-size:11px;padding:4px 10px;border:0.5px solid rgba(20,20,20,0.14);border-radius:20px;color:#5A5A5E;background:#FFFFFF">Client</span>
+<span style="font-size:11px;padding:4px 10px;border:0.5px solid rgba(20,20,20,0.14);border-radius:20px;color:#5A5A5E;background:#FFFFFF">Carrier</span>
+<span style="font-size:11px;padding:4px 10px;border:0.5px solid rgba(20,20,20,0.14);border-radius:20px;color:#5A5A5E;background:#FFFFFF">Lane</span>
+<span style="font-size:11px;padding:4px 10px;border:0.5px solid rgba(20,20,20,0.14);border-radius:20px;color:#8A8A90;background:#FFFFFF">More</span>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:10px">
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:10px"><p style="font-size:11px;color:#5A5A5E;margin:0 0 5px">On-time rate</p><p style="font-size:19px;font-weight:500;margin:0;color:#141414">82.2%</p><p style="font-size:10px;color:#8A8A90;margin:3px 0 0">of 370 completed</p></div>
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:10px"><p style="font-size:11px;color:#5A5A5E;margin:0 0 5px">Avg transit</p><p style="font-size:19px;font-weight:500;margin:0;color:#141414">3.8 d</p><p style="font-size:10px;color:#8A8A90;margin:3px 0 0">P90 6.0 d</p></div>
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:10px"><p style="font-size:11px;color:#5A5A5E;margin:0 0 5px">Orders</p><p style="font-size:19px;font-weight:500;margin:0;color:#141414">400</p><p style="font-size:10px;color:#8A8A90;margin:3px 0 0">1,310 units</p></div>
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:10px"><p style="font-size:11px;color:#5A5A5E;margin:0 0 5px">Revenue</p><p style="font-size:19px;font-weight:500;margin:0;color:#141414">$13.7k</p><p style="font-size:10px;color:#8A8A90;margin:3px 0 0">AOV $34.24</p></div>
+</div>
+
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 0 10px"><p style="font-size:12px;font-weight:500;margin:0;color:#141414">Delivery performance</p><p style="font-size:11px;color:#8A8A90;margin:0">400 orders</p></div>
+<div style="display:flex;height:28px;border-radius:4px;overflow:hidden;margin-bottom:10px">
+<div style="flex:304;background:#45785F;display:flex;align-items:center;justify-content:center"><span style="font-size:11px;font-weight:500;color:#FFFFFF">76.0%</span></div>
+<div style="flex:55;background:#A88738;display:flex;align-items:center;justify-content:center"><span style="font-size:11px;font-weight:500;color:#FFFFFF">13.8%</span></div>
+<div style="flex:11;background:#735C26"></div><div style="flex:27;background:#5A999E"></div><div style="flex:3;background:#E4E4E8"></div>
+</div>
+<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+<span style="font-size:10px;background:#DEEDE6;color:#2F7553;padding:3px 9px;border-radius:20px">Delivered 304</span>
+<span style="font-size:10px;background:#F4EBD7;color:#82641C;padding:3px 9px;border-radius:20px">Delayed 55</span>
+<span style="font-size:10px;background:#E9DEC4;color:#7A5D1A;padding:3px 9px;border-radius:20px">Exception 11</span>
+<span style="font-size:10px;background:#DEECED;color:#317377;padding:3px 9px;border-radius:20px">In transit 27</span>
+<span style="font-size:10px;background:#F1F1F4;color:#4A4A50;padding:3px 9px;border-radius:20px">Canceled 3</span>
+</div>
+<div style="border-top:0.5px solid rgba(20,20,20,0.09);padding-top:9px;display:flex;gap:16px;flex-wrap:wrap;align-items:baseline">
+<span style="font-size:10px;color:#8A8A90">Of 370 completed</span>
+<span style="font-size:12px;color:#5A5A5E"><span style="font-weight:500;color:#141414">82.2%</span> on time</span>
+<span style="font-size:12px;color:#5A5A5E"><span style="font-weight:500;color:#141414">14.9%</span> delayed</span>
+<span style="font-size:12px;color:#5A5A5E"><span style="font-weight:500;color:#141414">3.0%</span> exception</span>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px">
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:12px 14px">
+<div style="display:flex;align-items:flex-start;justify-content:space-between"><div><p style="font-size:12px;font-weight:500;margin:0 0 1px;color:#141414">Order volume</p><p style="font-size:10px;color:#8A8A90;margin:0 0 11px">Monthly, 2025</p></div><i class="ti ti-pin" style="font-size:13px;color:#C4C4CA" aria-hidden="true"></i></div>
+<div style="display:flex;align-items:flex-end;gap:3px;height:66px">
+<div style="flex:1;height:100%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:46%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:58%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:32%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:33%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:29%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:54%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:43%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:25%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:33%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:28%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:32%;background:#3A3A3F;border-radius:2px"></div>
+</div>
+</div>
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:12px 14px">
+<div style="display:flex;align-items:flex-start;justify-content:space-between"><div><p style="font-size:12px;font-weight:500;margin:0 0 1px;color:#141414">Transit time</p><p style="font-size:10px;color:#8A8A90;margin:0 0 11px">Days · 21 orders past 7 d</p></div><i class="ti ti-pin" style="font-size:13px;color:#C4C4CA" aria-hidden="true"></i></div>
+<div style="display:flex;align-items:flex-end;gap:2px;height:66px">
+<div style="flex:1;height:53%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:68%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:95%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:100%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:69%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:30%;background:#C8C8CE;border-radius:2px"></div><div style="flex:1;height:16%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:10%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:8%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:4%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:5%;background:#3A3A3F;border-radius:2px"></div><div style="flex:1;height:3%;background:#3A3A3F;border-radius:2px"></div>
+</div>
+</div>
+</div>
+
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 2px">
+<p style="font-size:12px;font-weight:500;margin:0;color:#141414">Breakdown</p>
+<div style="display:flex;align-items:center;gap:8px">
+<div style="display:flex;gap:2px;background:#F1F1F4;border-radius:7px;padding:2px">
+<span style="font-size:10px;padding:3px 9px;background:#FFFFFF;color:#141414;border-radius:5px">Carrier</span>
+<span style="font-size:10px;padding:3px 9px;color:#5A5A5E">Region</span>
+<span style="font-size:10px;padding:3px 9px;color:#5A5A5E">Lane</span>
+<span style="font-size:10px;padding:3px 9px;color:#5A5A5E">Client</span>
+</div>
+<i class="ti ti-pin" style="font-size:13px;color:#C4C4CA" aria-hidden="true"></i>
+</div>
+</div>
+<p style="font-size:10px;color:#8A8A90;margin:0 0 4px">Darker points are slower. Hollow points have fewer than 30 completed deliveries.</p>
+
+<svg width="100%" viewBox="0 0 520 268" role="img" style="display:block">
+<rect x="228" y="112" width="277" height="106" fill="#FDF6EA"/>
+<line x1="42" y1="112" x2="505" y2="112" stroke="#141414" stroke-width="1" stroke-dasharray="4 3"/>
+<line x1="228" y1="24" x2="228" y2="218" stroke="#141414" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.3"/>
+<line x1="42" y1="218" x2="505" y2="218" stroke="rgba(20,20,20,0.18)" stroke-width="1"/>
+<text x="503" y="109" text-anchor="end" font-size="10" fill="#141414">82.2% target</text>
+<text x="500" y="211" text-anchor="end" font-size="10" fill="#82641C">High volume, below target</text>
+<text x="36" y="28" text-anchor="end" font-size="10" fill="#8A8A90">100%</text>
+<text x="36" y="76" text-anchor="end" font-size="10" fill="#8A8A90">90%</text>
+<text x="36" y="124" text-anchor="end" font-size="10" fill="#8A8A90">80%</text>
+<text x="36" y="172" text-anchor="end" font-size="10" fill="#8A8A90">70%</text>
+<text x="36" y="220" text-anchor="end" font-size="10" fill="#8A8A90">60%</text>
+<text x="42" y="234" font-size="10" fill="#8A8A90">0%</text>
+<text x="228" y="234" text-anchor="middle" font-size="10" fill="#8A8A90">10%</text>
+<text x="414" y="234" text-anchor="middle" font-size="10" fill="#8A8A90">20%</text>
+<text x="273" y="254" text-anchor="middle" font-size="10" fill="#5A5A5E">Share of order volume</text>
+<circle cx="470" cy="92" r="6" fill="#A0A0A8"/><text x="461" y="96" text-anchor="end" font-size="11" fill="#141414">FedEx</text>
+<circle cx="435" cy="141" r="6" fill="#6E6E76"/><text x="426" y="145" text-anchor="end" font-size="11" fill="#141414">UPS</text>
+<circle cx="335" cy="57" r="6" fill="#C8C8CE"/><text x="326" y="61" text-anchor="end" font-size="11" fill="#141414">DHL</text>
+<circle cx="279" cy="146" r="6" fill="#3A3A3F"/><text x="270" y="150" text-anchor="end" font-size="11" fill="#141414">USPS</text>
+<circle cx="180" cy="131" r="5" fill="#FFFFFF" stroke="#A0A0A8" stroke-width="1.5"/><text x="189" y="128" font-size="11" fill="#8A8A90">OnTrac</text>
+<circle cx="170" cy="140" r="5" fill="#FFFFFF" stroke="#A0A0A8" stroke-width="1.5"/><text x="179" y="152" font-size="11" fill="#8A8A90">Royal Mail</text>
+<circle cx="165" cy="64" r="5" fill="#FFFFFF" stroke="#C8C8CE" stroke-width="1.5"/><text x="174" y="61" font-size="11" fill="#8A8A90">LaserShip</text>
+<circle cx="135" cy="78" r="5" fill="#FFFFFF" stroke="#C8C8CE" stroke-width="1.5"/><text x="126" y="82" text-anchor="end" font-size="11" fill="#8A8A90">DPD</text>
+<circle cx="86" cy="206" r="5" fill="#FFFFFF" stroke="#3A3A3F" stroke-width="1.5"/><text x="95" y="210" font-size="11" fill="#8A8A90">GLS</text>
+</svg>
+
+<div style="border-top:0.5px solid rgba(20,20,20,0.09);padding-top:9px;margin-top:2px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:10px;color:#5A5A5E">
+<span>Avg transit</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#C8C8CE;border-radius:50%;margin-right:4px"></span>3.5 d</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#A0A0A8;border-radius:50%;margin-right:4px"></span>3.7 d</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#6E6E76;border-radius:50%;margin-right:4px"></span>3.9 d</span>
+<span><span style="display:inline-block;width:9px;height:9px;background:#3A3A3F;border-radius:50%;margin-right:4px"></span>4.6 d+</span>
+</div>
+</div>
+
+<div style="background:#FFFFFF;border:0.5px solid rgba(20,20,20,0.09);border-radius:10px;padding:12px 14px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 9px"><div style="display:flex;align-items:center;gap:7px"><i class="ti ti-message-circle" style="font-size:14px;color:#5A5A5E" aria-hidden="true"></i><span style="font-size:12px;font-weight:500;color:#141414">Ask</span></div><i class="ti ti-chevron-down" style="font-size:14px;color:#C4C4CA" aria-hidden="true"></i></div>
+<p style="font-size:12px;margin:0 0 8px;color:#5A5A5E">Which carriers should we move volume away from?</p>
+<div style="background:#FAFAFB;border:0.5px solid rgba(20,20,20,0.08);border-radius:8px;padding:10px 11px;margin-bottom:9px">
+<p style="font-size:12px;margin:0 0 9px;line-height:1.6;color:#141414">UPS and USPS are the only carriers above 10% of volume that sit below the 82.2% target — 75.6% on 78 deliveries and 74.5% on 47. DHL runs 93.1% on 58 deliveries at a faster average transit, so it is the obvious place to move volume to.</p>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+<span style="font-size:10px;background:#DEEDE6;color:#2F7553;padding:3px 8px;border-radius:20px">Verified</span>
+<span style="font-size:10px;color:#5A5A5E;border:0.5px solid rgba(20,20,20,0.14);padding:3px 8px;border-radius:20px">Query plan</span>
+<span style="font-size:10px;color:#5A5A5E;border:0.5px solid rgba(20,20,20,0.14);padding:3px 8px;border-radius:20px">Data</span>
+<span style="font-size:10px;color:#5A5A5E;border:0.5px solid rgba(20,20,20,0.14);padding:3px 8px;border-radius:20px">Pin</span>
+</div>
+</div>
+<div style="display:flex;align-items:center;gap:8px;border:0.5px solid rgba(20,20,20,0.14);border-radius:8px;padding:8px 11px"><span style="font-size:12px;color:#8A8A90;flex:1">Ask a follow-up</span><span style="font-size:10px;color:#C4C4CA">⌘K</span></div>
+</div>
+
+</div>
+</div>
