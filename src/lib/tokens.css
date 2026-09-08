@@ -1,0 +1,111 @@
+/* Design tokens, transcribed from docs/DESIGN.md sections 2-4.
+   Every colour in the app comes from a role in this file. No hex literals
+   past this point. */
+
+:root {
+  /* Surfaces */
+  --canvas:         #F6F6F8;
+  --surface-card:   #FFFFFF;
+  --surface-rail:   #141414;
+  --surface-inset:  #F1F1F4;
+
+  --border:         rgba(20, 20, 20, 0.09);
+  --border-strong:  rgba(20, 20, 20, 0.14);
+  --grid:           rgba(20, 20, 20, 0.07);
+  --axis:           rgba(20, 20, 20, 0.18);
+
+  --text-primary:   #141414;
+  --text-secondary: #5A5A5E;
+  --text-muted:     #8A8A90;
+  --text-on-rail:   #F3F3F3;
+  --text-rail-dim:  #9A9AA0;
+
+  /* Graphite ramp — the default ink for anything without semantic meaning */
+  --graphite-900: #141414;
+  --graphite-700: #3A3A3F;
+  --graphite-600: #5E5E66;
+  --graphite-500: #87878F;
+  --graphite-400: #B4B4BC;
+  --graphite-300: #C8C8CE;
+  --graphite-200: #DCDCE1;
+  --graphite-100: #F1F1F4;
+
+  /* Semantic families: fill for shapes, tint + text for pills. Different
+     jobs, different stops — never substitute one for the other. */
+  --green-fill: #45785F;  --green-tint: #DEEDE6;  --green-text: #2F7553;
+  --amber-fill: #A88738;  --amber-tint: #F4EBD7;  --amber-text: #82641C;
+  --amber-deep-fill: #735C26; --amber-deep-tint: #E9DEC4; --amber-deep-text: #7A5D1A;
+  --teal-fill:  #5A999E;  --teal-tint:  #DEECED;  --teal-text:  #317377;
+  --neutral-fill: #E4E4E8; --neutral-tint: #F1F1F4; --neutral-text: #4A4A50;
+
+  /* Roles. Chart code assigns a role; the theme resolves it. */
+  --role-positive:       var(--green-fill);
+  --role-problem:        var(--amber-fill);
+  --role-problem-severe: var(--amber-deep-fill);
+  --role-open:           var(--teal-fill);
+  --role-neutral:        var(--graphite-200);
+  --role-ink:            var(--graphite-700);
+  --role-reference:      var(--graphite-900);
+  --role-muted:          #D4D4DA;
+
+  /* Sequential ramp for intensity encodings */
+  --seq-1: #EBF4F0; --seq-2: #CBE2D7; --seq-3: #9DC8B3; --seq-4: #69AB8B; --seq-5: #44795F;
+
+  /* Brand accent: logo mark, one primary action per view, focus rings.
+     Never a chart mark, never text — 1.52:1 on white. */
+  --brand: #10F080;
+  --brand-soft: #8CE191;
+
+  --quadrant: #FDF6EA;
+
+  --radius-card: 10px;
+  --radius-pill: 20px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Two weights only, 400 and 500. */
+h1, h2, h3, h4, p { margin: 0; font-weight: 400; }
+button { font: inherit; color: inherit; }
+
+/* Tabular figures on every number in a table or on an axis. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+.card {
+  background: var(--surface-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-card);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.focusable:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}

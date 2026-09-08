@@ -96,6 +96,19 @@ export async function execute(
   return answer;
 }
 
+/** The window the result really covers: the plan's resolved range, narrowed by
+ *  any explicit filter on the same time field. */
+function effectiveRange(ir: QueryIR, compiled: ReturnType<typeof compile>): string {
+  const planned = compiled.resolvedRange;
+  const bound = ir.time
+    ? ir.filters.find((f) => f.field === ir.time!.field && f.op === 'between' && f.value.length === 2)
+    : undefined;
+  if (!bound) return planned?.label ?? 'all data';
+  const start = planned ? (bound.value[0]! > planned.start ? bound.value[0]! : planned.start) : bound.value[0]!;
+  const end = planned ? (bound.value[1]! < planned.end ? bound.value[1]! : planned.end) : bound.value[1]!;
+  return `${start} to ${end}`;
+}
+
 function buildExplain(
   ir: QueryIR,
   layer: Layer,
@@ -152,7 +165,10 @@ function buildExplain(
       ? {
           field: ir.time.field,
           label: layer.time_dimensions[ir.time.field]?.label ?? ir.time.field,
-          range: compiled.resolvedRange?.label ?? 'all data',
+          // A filter on the same field narrows the window the tile actually
+          // covers. Reporting the plan's own range here would contradict the
+          // filter listed two rows above it.
+          range: effectiveRange(ir, compiled),
           anchor: `data_as_of ${dataAsOf(layer)}`,
           timezone: layer.time_anchor.timezone,
           partial_period: compiled.resolvedRange?.partial_period ?? false,
@@ -278,6 +294,18 @@ async function executeForecast(
 
   let history: Point[] = [];
   let compiled: ReturnType<typeof compile> | null = null;
+  // Resolve the SKU's parent through the declared hierarchy rather than by
+  // parsing the id. The layer says sku.parent is product_category; reading the
+  // prefix would work on this data and break on the first client whose SKUs
+  // are named differently.
+  let parentCategory = categoryFilter?.value[0] ?? null;
+  if (skuFilter && !parentCategory && layer.dimensions['sku']?.parent === 'product_category') {
+    const parent = await db.run<{ product_category: string }>(
+      'SELECT product_category FROM fct_orders WHERE sku = ? LIMIT 1',
+      [skuFilter.value[0] ?? ''],
+    );
+    parentCategory = parent[0]?.product_category ?? null;
+  }
   if (!skuFilter) {
     compiled = compile(historyIR, layer);
     const rows = await db.run(compiled.sql, compiled.params);
@@ -292,9 +320,7 @@ async function executeForecast(
       leadTimeDays: spec.lead_time_days,
       serviceLevel: spec.service_level,
       currentOnHand: spec.current_on_hand,
-      skuFiltered: skuFilter
-        ? { sku: skuFilter.value[0] ?? '', category: categoryFilter?.value[0] ?? null }
-        : null,
+      skuFiltered: skuFilter ? { sku: skuFilter.value[0] ?? '', category: parentCategory } : null,
       metricLabel: layer.metrics[spec.target_metric]?.label ?? spec.target_metric,
       through: dataAsOf(layer).slice(0, 7),
     },

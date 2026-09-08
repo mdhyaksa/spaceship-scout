@@ -149,7 +149,12 @@ export function compile(ir: QueryIR, layer: Layer, dialect: Dialect = sqlite): C
     if (metric.agg !== 'percentile_disc') continue;
     const keySelect = groupKeys.map((k) => `${k.sql} AS ${k.alias}`).join(',\n           ');
     const keyNames = groupKeys.map((k) => k.alias).join(', ');
-    const partition = groupKeys.length ? `PARTITION BY ${groupKeys.map((k) => k.sql).join(', ')} ` : '';
+    // Partition by the aliases, not the source expressions: the window runs
+    // over src_<metric>, which projects only the aliases. A dimension whose
+    // alias happens to equal its column (carrier, region) would work either
+    // way, which is exactly why this has to be right for the ones that do not
+    // (lane is origin_city || ' -> ' || destination_city).
+    const partition = groupKeys.length ? `PARTITION BY ${groupKeys.map((k) => k.alias).join(', ')} ` : '';
     const metricWhere = [whereSql.replace(/^WHERE /, ''), metric.filter ? expr(metric.filter) : '']
       .filter(Boolean)
       .join('\n         AND ');

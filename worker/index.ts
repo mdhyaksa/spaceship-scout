@@ -10,8 +10,9 @@
 import { layer } from '../semantic/layer.generated.ts';
 import type { Filter, QueryIR } from '../shared/ir.ts';
 import type { Answer, CoverageRow } from '../shared/types.ts';
-import { emptyIR } from '../shared/ir.ts';
+import { emptyIR, queryIrSchema } from '../shared/ir.ts';
 import { d1Database, type Database } from './db.ts';
+import { resolveRange } from './time.ts';
 import { execute } from './execute.ts';
 import { buildCatalog } from './catalog.ts';
 import { breakdownIR, findTile, TILES } from './tiles.ts';
@@ -46,6 +47,7 @@ export default {
 async function route(path: string, request: Request, env: Env, db: Database): Promise<Response> {
   if (path === '/api/layer') return json(buildCatalog(layer));
   if (path === '/api/tiles') return handleTiles(request, db);
+  if (path === '/api/run') return handleRun(request, db);
   if (path === '/api/query') return handleQuery(request, env, db);
   if (path === '/api/forecast') return handleForecast(request, db);
   if (path === '/api/coverage') return handleCoverage(db);
@@ -56,14 +58,38 @@ function requestId(): string {
   return `req_${crypto.randomUUID().replace(/-/g, '').slice(0, 20)}`;
 }
 
+/**
+ * Period presets resolve on the server, not in the browser. The anchor and the
+ * "what does last month mean" rule are business logic, and duplicating them in
+ * the SPA is how the two drift apart.
+ */
+const PERIOD_PRESETS: Record<string, { kind: 'relative' | 'all_time'; n: number | null; unit: 'month' | null; complete: boolean | null }> = {
+  all: { kind: 'all_time', n: null, unit: null, complete: null },
+  this_month: { kind: 'relative', n: 1, unit: 'month', complete: false },
+  last_month: { kind: 'relative', n: 1, unit: 'month', complete: true },
+  last_3_months: { kind: 'relative', n: 3, unit: 'month', complete: false },
+  last_6_months: { kind: 'relative', n: 6, unit: 'month', complete: false },
+};
+
+function periodFilter(preset: string | undefined): Filter[] {
+  const spec = PERIOD_PRESETS[preset ?? 'all'];
+  if (!spec || spec.kind === 'all_time') return [];
+  const resolved = resolveRange(
+    { kind: 'relative', n: spec.n, unit: spec.unit, complete_periods: spec.complete, start: null, end: null },
+    layer,
+  );
+  return [{ field: 'order_date', op: 'between', value: [resolved.start, resolved.end] }];
+}
+
 async function handleTiles(request: Request, db: Database): Promise<Response> {
   const body = (await request.json()) as {
     filters?: Filter[];
+    period?: string;
     refresh?: string | null;
     breakdownDimension?: string;
     tiles?: string[];
   };
-  const filters = body.filters ?? [];
+  const filters = [...(body.filters ?? []), ...periodFilter(body.period)];
   const wanted = body.tiles?.length ? body.tiles : TILES.map((t) => t.id);
 
   const out: Record<string, Answer> = {};
@@ -81,6 +107,25 @@ async function handleTiles(request: Request, db: Database): Promise<Response> {
     });
   }
   return json(out);
+}
+
+/**
+ * Execute a plan the client already holds — a pinned answer, re-run on load.
+ *
+ * Pinning saves the IR rather than the result, so a pinned tile stays current
+ * and inherits the same cache and refresh behaviour as a built-in one. Running
+ * a client-supplied plan grants no power the chat does not already have: it
+ * goes through the same validator and compiler, and an invalid plan is
+ * refused rather than executed.
+ */
+async function handleRun(request: Request, db: Database): Promise<Response> {
+  const body = (await request.json()) as { ir?: QueryIR; refresh?: boolean };
+  if (!body.ir) return json({ error: 'A plan is required.' }, 400);
+  const parsed = queryIrSchema.safeParse(body.ir);
+  if (!parsed.success) {
+    return json({ error: `That plan does not match the schema: ${parsed.error.issues.map((i) => i.message).join('; ')}` }, 400);
+  }
+  return json(await execute(parsed.data, layer, db, { requestId: requestId(), cacheable: true, refresh: body.refresh }));
 }
 
 async function handleQuery(request: Request, env: Env, db: Database): Promise<Response> {
