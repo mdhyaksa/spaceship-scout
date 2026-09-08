@@ -43,7 +43,9 @@ export type Metric = SimpleMetric | PercentileMetric | RatioMetric;
 export interface Dimension {
   label: string;
   expr: string;
-  type: 'categorical' | 'boolean';
+  /** ordinal sorts numerically rather than lexically: transit day 10 comes
+   *  after 2, not before it. */
+  type: 'categorical' | 'ordinal' | 'boolean';
   values?: string[];
   approx_cardinality?: number;
   parent?: string;

@@ -285,6 +285,13 @@ export const layer: Layer = {
       "approx_cardinality": 47,
       "notes": "The only destination grain. destination_city partitions identically, so it stays a filterable column rather than a second dimension that would draw the same chart under a different chip.\n"
     },
+    "transit_days": {
+      "label": "Transit days",
+      "expr": "CAST(date_diff(delivery_date, order_date) AS INTEGER)",
+      "type": "ordinal",
+      "approx_cardinality": 12,
+      "notes": "Whole days from order to delivery. A distribution grain rather than a reporting grain: it exists so the transit-time histogram is a declared query like every other tile, instead of hand-written SQL sitting outside the semantic layer. Null for the 30 orders with no delivery date.\n"
+    },
     "order_status": {
       "label": "Status",
       "expr": "status",

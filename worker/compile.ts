@@ -24,7 +24,7 @@ import { resolveTime, type ResolvedRange } from './time.ts';
 export interface Column {
   key: string;
   label: string;
-  type: 'categorical' | 'time' | 'integer' | 'percent' | 'days_1dp' | 'currency_usd';
+  type: 'categorical' | 'ordinal' | 'time' | 'integer' | 'percent' | 'days_1dp' | 'currency_usd';
 }
 
 export interface CompiledQuery {
@@ -228,7 +228,9 @@ export function compile(ir: QueryIR, layer: Layer, dialect: Dialect = sqlite): C
     ...ir.dimensions.map((name) => ({
       key: name,
       label: layer.dimensions[name]!.label,
-      type: 'categorical' as const,
+      type: (layer.dimensions[name]!.type === 'ordinal' ? 'ordinal' : 'categorical') as
+        | 'categorical'
+        | 'ordinal',
     })),
     ...(grain ? [{ key: PERIOD, label: 'Period', type: 'time' as const }] : []),
     ...selected.map((name) => ({
