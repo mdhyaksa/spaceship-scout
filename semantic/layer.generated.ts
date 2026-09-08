@@ -65,7 +65,10 @@ export const layer: Layer = {
         "lane": 3,
         "client_id": 5
       }
-    }
+    },
+    "delayed_statuses": [
+      "delayed"
+    ]
   },
   "metrics": {
     "order_count": {
@@ -93,7 +96,7 @@ export const layer: Layer = {
       "label": "Delayed orders",
       "agg": "count_distinct",
       "expr": "order_id",
-      "filter": "status = 'delayed'",
+      "filter": "status IN {{delayed_statuses}}",
       "format": "integer",
       "notes": "Status-flagged as delayed. This dataset has no promised delivery date, so lateness is a recorded outcome rather than a computed one.\n"
     },

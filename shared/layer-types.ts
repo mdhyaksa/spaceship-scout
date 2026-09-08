@@ -89,6 +89,9 @@ export interface Layer {
     completed_statuses: string[];
     open_statuses: string[];
     exception_counts_as_late: boolean;
+    /** Derived from exception_counts_as_late by the build step; substituted
+     *  into metric filters as {{delayed_statuses}}. */
+    delayed_statuses: string[];
     min_group_size: Record<string, number | null>;
     tail_threshold_days: number;
     flat_distribution_p: number;

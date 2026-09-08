@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parse } from 'yaml';
 import type { Layer, Metric } from '../shared/layer-types.ts';
+import { deriveParameters } from './derive.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = join(here, 'layer.yaml');
@@ -22,7 +23,20 @@ const layer = parse(readFileSync(source, 'utf8')) as Layer;
 
 // Structural checks. Cheap, and they turn a typo in the YAML into a build
 // failure rather than a runtime "unknown metric" at demo time.
+deriveParameters(layer);
+const derived = layer.parameters as unknown as Record<string, unknown>;
+
 const errors: string[] = [];
+
+// Any {{placeholder}} in a metric filter must resolve to a declared parameter.
+for (const [name, metric] of Object.entries(layer.metrics)) {
+  const filter = 'filter' in metric ? metric.filter : undefined;
+  for (const match of (filter ?? '').matchAll(/\{\{(\w+)\}\}/g)) {
+    if (!(match[1]! in derived)) {
+      errors.push(`metric ${name}: filter references unknown parameter {{${match[1]}}}`);
+    }
+  }
+}
 
 for (const [name, metric] of Object.entries(layer.metrics) as [string, Metric][]) {
   if (!metric.label) errors.push(`metric ${name}: missing label`);

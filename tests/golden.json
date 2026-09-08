@@ -1,0 +1,78 @@
+{
+  "note": "Assertions are on behaviour, not on values. 'returns GLS' is not a valid expectation - that is tuning to a mock dataset and it breaks the day real data arrives. 'refuses to name a winner' is.",
+  "cases": [
+    { "question": "How many orders were delivered late last month?",
+      "expect": { "intent": "scalar", "metrics": ["delayed_count"], "relative_time": true, "complete_periods": true } },
+
+    { "question": "Which carrier has the highest delay rate?",
+      "expect": { "intent": "aggregate", "metrics": ["delay_rate"], "dimensions": ["carrier"], "answer_must_not_assert_winner": true } },
+
+    { "question": "What proportion of our deliveries arrive on time?",
+      "expect": { "intent": "scalar", "metrics": ["on_time_rate"] } },
+
+    { "question": "How many of our delivered orders were late?",
+      "expect": { "intent": "any", "metrics_must_include_ratio_or": ["delayed_count", "delay_rate"],
+                  "note": "The denominator trap: delayed and delivered are mutually exclusive statuses." } },
+
+    { "question": "What share of completed deliveries were delayed?",
+      "expect": { "intent": "scalar", "metrics": ["delay_rate"] } },
+
+    { "question": "Late orders as a fraction of everything we shipped",
+      "expect": { "intent": "scalar", "metrics": ["delay_rate"] } },
+
+    { "question": "Show delayed orders by week for the last 3 months",
+      "expect": { "intent": "aggregate", "metrics": ["delayed_count"], "grain": "week", "relative_time": true } },
+
+    { "question": "Order volume by month this year",
+      "expect": { "intent": "aggregate", "metrics": ["order_count"], "grain": "month" } },
+
+    { "question": "Which courier is slowest?",
+      "expect": { "intent": "aggregate", "dimensions": ["carrier"], "note": "glossary: courier maps to carrier" } },
+
+    { "question": "Delay rate by territory",
+      "expect": { "intent": "aggregate", "dimensions": ["region"], "note": "glossary: territory maps to region" } },
+
+    { "question": "Which orders are running late right now?",
+      "expect": { "intent": "unanswerable" } },
+
+    { "question": "How many orders are in transit at the moment?",
+      "expect": { "intent": "unanswerable" } },
+
+    { "question": "What did shipping cost us last month?",
+      "expect": { "intent": "unanswerable" } },
+
+    { "question": "Give me the customer's name and address for order ORD-2026-267300-0001",
+      "expect": { "intent": "unanswerable" } },
+
+    { "question": "Predict demand for SKU PAPER-0197 for the next 4 months",
+      "expect": { "intent": "forecast", "forecast_filters_sku": true, "service_must_refuse": true } },
+
+    { "question": "How much inventory should I plan for crayons next quarter?",
+      "expect": { "intent": "forecast", "forecast_category": "CRAYON" } },
+
+    { "question": "Show me delay rate for 2027",
+      "expect": { "validator_error": "out_of_coverage" } },
+
+    { "question": "Delay rate by SKU",
+      "expect": { "validator_error": "not_groupable" } },
+
+    { "question": "How is everything going?",
+      "expect": { "intent": "clarify" } },
+
+    { "question": "Show me the worst performers",
+      "expect": { "intent": "clarify" } },
+
+    { "question": "Revenue by product category",
+      "expect": { "intent": "aggregate", "metrics": ["gross_revenue"], "dimensions": ["product_category"],
+                  "note": "gross by glossary default; the panel says so" } },
+
+    { "question": "Net revenue after discounts by client",
+      "expect": { "intent": "aggregate", "metrics": ["net_revenue"], "dimensions": ["client_id"] } },
+
+    { "question": "Delay rate by region",
+      "expect": { "intent": "aggregate", "dimensions": ["region"], "flat_distribution_warning": true } },
+
+    { "question": "How long do deliveries take?",
+      "expect": { "intent": "scalar", "metrics_must_include_any": ["avg_transit_days", "p90_transit_days"] } }
+  ]
+}

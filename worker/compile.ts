@@ -40,10 +40,31 @@ export interface CompiledQuery {
 
 const PERIOD = 'period';
 
+/**
+ * Expand {{parameter}} placeholders in semantic-layer expressions.
+ *
+ * This is what makes the business layer's parameters do real work rather than
+ * sit in the YAML as documentation: `status IN {{delayed_statuses}}` becomes a
+ * literal list derived from exception_counts_as_late, so flipping that flag
+ * changes every delay figure in the product with no code change. Values come
+ * from the version-controlled layer, never from a request.
+ */
+function substituteParameters(expression: string, layer: Layer): string {
+  return expression.replace(/\{\{(\w+)\}\}/g, (whole, name: string) => {
+    const value = (layer.parameters as unknown as Record<string, unknown>)[name];
+    if (Array.isArray(value)) {
+      return `(${value.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(', ')})`;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`;
+    return whole;
+  });
+}
+
 export function compile(ir: QueryIR, layer: Layer, dialect: Dialect = sqlite): CompiledQuery {
   const ds = layer.datasets['orders']!;
   const table = dialect.table(ds.base_table, ds.postgres_schema);
-  const expr = (e: string) => applyPortableFunctions(e, dialect);
+  const expr = (e: string) => applyPortableFunctions(substituteParameters(e, layer), dialect);
 
   // ---- WHERE, shared by the main query and every percentile CTE ----------
   const whereParts: string[] = [];

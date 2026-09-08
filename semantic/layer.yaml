@@ -117,7 +117,10 @@ metrics:
     label: Delayed orders
     agg: count_distinct
     expr: order_id
-    filter: status = 'delayed'
+    # {{delayed_statuses}} is derived from exception_counts_as_late by the
+    # build step. Flipping that one flag changes every delay figure in the
+    # product without touching a prompt or a line of application code.
+    filter: status IN {{delayed_statuses}}
     format: integer
     notes: >
       Status-flagged as delayed. This dataset has no promised delivery date,
