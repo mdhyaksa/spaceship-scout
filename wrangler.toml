@@ -1,0 +1,17 @@
+name = "spaceship-logistics"
+main = "worker/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The SPA build output. Worker routes take /api/*, everything else is static.
+assets = { directory = "dist", not_found_handling = "single-page-application" }
+
+[[d1_databases]]
+binding = "DB"
+database_name = "logistics"
+database_id = "REPLACE_AFTER_wrangler_d1_create"
+
+# OPENROUTER_API_KEY is a secret, never a var:
+#   wrangler secret put OPENROUTER_API_KEY
+[vars]
+OPENROUTER_MODEL = "anthropic/claude-sonnet-4.5"

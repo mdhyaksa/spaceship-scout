@@ -1,0 +1,36 @@
+{
+  "name": "spaceship-logistics-analytics",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build:layer": "tsx semantic/build-layer.ts",
+    "dev": "npm run build:layer && vite",
+    "build": "npm run build:layer && tsc --noEmit && vite build",
+    "test": "npm run build:layer && vitest run",
+    "test:watch": "vitest",
+    "db:local": "tsx db/seed.ts",
+    "db:remote": "wrangler d1 execute logistics --remote --file=db/schema.sql && tsx db/seed.ts --emit-sql | wrangler d1 execute logistics --remote --file=/dev/stdin",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "better-sqlite3": "^11.7.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0",
+    "yaml": "^2.6.1"
+  }
+}
