@@ -50,3 +50,19 @@ async function main() {
 }
 
 main();
+
+// appended: sufficiency guard
+import { assess } from '../worker/sufficiency.ts';
+async function guards() {
+  console.log('\n--- sufficiency guard ---');
+  for (const dim of ['carrier', 'region', 'lane', 'client_id']) {
+    const ir = emptyIR({ metrics: ['delay_rate'], dimensions: [dim], sort: [{ by: 'delay_rate', dir: 'desc' }], limit: 60 });
+    const q = compile(ir, layer);
+    const rows = await db.run(q.sql, q.params);
+    const s = assess(rows, ir, layer, q);
+    console.log(`  ${dim}: ${s.coverage_caption}`);
+    console.log(`    chi2 p=${s.distribution_test?.p.toFixed(3)} flat=${s.distribution_test?.flat} | ranking sig=${s.ranking_significant} p=${s.ranking_test?.p.toFixed(3)}`);
+    s.warnings.forEach((w) => console.log(`    ! ${w}`));
+  }
+}
+guards();
