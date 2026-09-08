@@ -1,8 +1,9 @@
 # Natural Language Analytics — Technical Specification
 
-**Version:** 0.2
+**Version:** 0.3
 **Dataset:** `mock_logistics_data.csv` — 400 rows, 17 columns, order grain, calendar year 2025
-**Changes from 0.1:** semantic layer derived from the actual dataset; planner uses tool calling; raw-SQL usage promoted to a first-class observability surface feeding semantic layer growth.
+**Companions:** `docs/SPEC.md` (product scope, built/deferred split) · `docs/DESIGN.md` (visual system)
+**Changes from 0.2:** every claim re-checked against the CSV. `origin_region` becomes `region` — all 47 lanes are intra-region, so destination region is derivable and no longer `unanswerable`; `destination_city` collapses into `lane`; `tail_threshold_days` added; the sparse-series and promo-χ² claims corrected; cross-references use real filenames.
 
 ---
 
@@ -119,10 +120,10 @@ Single denormalized table, order grain, one row per `order_id`. **No joins are r
 Hierarchies present, all strict:
 
 - `warehouse` → `origin_city` is 1:1 (9 each)
-- `destination_city` → `origin_city` is many:1; every destination is served from exactly one origin, so a lane and a destination city are the same thing
+- `destination_city` → `origin_city` is many:1; 0 of 47 destinations are served by more than one origin, so a lane and a destination city are the same partition. The layer declares `lane` only
 - `region` groups origin cities: EU (Amsterdam, Berlin), UK (London), US-C (Chicago, Dallas), US-E (Atlanta, Newark), US-W (Los Angeles, San Francisco)
 
-**`region` is an origin region, not a destination region.** Name it accordingly in the layer or users will misread every regional breakdown.
+**Every lane is intra-region.** Checked against the data: all 47 destinations fall in the same region as their origin — EU origins ship only to EU cities, UK to UK, and each US region to its own. Origin region and destination region are therefore the same value, which is why the layer declares one plain `region` dimension rather than an `origin_region` that implies a distinction this data does not contain. If cross-region lanes ever appear, that is the moment to split it — and the moment "delay rate by destination region" stops being a duplicate of the origin breakdown.
 
 ### 2.5 Known defects in the mock data
 
@@ -136,7 +137,7 @@ This is generated data and parts of it are not internally consistent. Build agai
 
 **Terminal statuses are coherent.** Mean transit days are 3.25 (`delivered`), 6.11 (`delayed`), 8.45 (`exception`) — the generator keyed these off duration, so `delay_rate` carries real signal.
 
-**Dimensional breakdowns of delay are mostly noise.** χ² against `delayed`: carrier 0.053, origin region 0.945, product category 0.949, warehouse 0.983, promo 0.887. Only carrier is even borderline, and its ranking is driven by tiny samples — GLS shows 25% from 8 completed deliveries, DPD shows 0% from 18.
+**Dimensional breakdowns of delay are mostly noise.** χ² against `delayed`: carrier 0.053, region 0.945, product category 0.949, warehouse 0.983, promo 0.652. Only carrier is even borderline, and its ranking is driven by tiny samples — GLS shows 25% from 8 completed deliveries, DPD shows 0% from 18.
 
 The product-level response to this is §9.1, a sufficiency guard. It is not a caveat about the mock data; small groups will exist in production too, and "which carrier is worst" is the most likely question this system will ever be asked.
 
@@ -173,26 +174,33 @@ parameters:
 
   min_group_size:
     default: 30
-    carrier: 30
-    origin_region: 30
-    client_id: 20
-    lane: 10
-    destination_city: 10
+    carrier: 30          # 4 of 9 carriers clear it
+    region: 30           # 5 of 5
+    warehouse: 30        # 9 of 9
+    product_category: 30 # 8 of 8
+    client_id: 20        # 5 of 30
+    lane: 10             # 10 of 47
     sku: null            # never a valid reporting grain on this dataset
+
+  tail_threshold_days: 8 # p95 of completed transit; 21 orders sit at or above it
 
   priority_quadrant:
     rate_threshold: metric.on_time_rate   # the overall rate, computed not fixed
     volume_threshold_pct:
       default: 10
       carrier: 10
-      origin_region: 15
+      region: 15
       lane: 3
       client_id: 5
 ```
 
-`min_group_size` is **per dimension**, not global. A single number cannot work here: 30 is right for carrier, but no lane reaches 30 on this dataset (mean 8.5 completed deliveries per lane), so a global 30 would mute every lane and make the breakdown useless. Where a dimension's threshold is below the default, the UI states it — "minimum sample for lane is 10; no lane reaches 30, so rates are indicative" — rather than quietly lowering the bar.
+`min_group_size` is **per dimension**, not global. A single number cannot work here: 30 is right for carrier, but no lane reaches 30 on this dataset (370 completed deliveries across 47 lanes — mean 7.9, median 8, max 14), so a global 30 would mute every lane and make the breakdown useless.
 
-`priority_quadrant` defines the shaded region in the breakdown scatter (`chart-design-spec-v0.4.md` §6.1). The rate threshold is the computed overall rate for whatever filters are active, never a hardcoded number. The volume threshold varies by dimension because 10% of volume is a large carrier and an impossible lane.
+The comments above are the measured cost of each floor, and they are not decoration: at these thresholds 5 of 9 carriers, 25 of 30 clients and 37 of 47 lanes fall below the bar. Lowering the floors would light those points up without making them mean anything — a lane rate on 5 deliveries moves 20 points per order. So the floors stay and **the UI states the coverage instead**: "10 of 47 lanes meet the minimum sample of 10; the rest are indicative only" (`docs/DESIGN.md` §6.1). Quietly muting three quarters of a breakdown is the thing to avoid, not the muting itself.
+
+`tail_threshold_days` is where the transit-time distribution stops being routine and starts generating complaints. It is the p95 of completed transit (8 days, 21 orders above it), and it drives the tail shading in `docs/DESIGN.md` §5. Recompute it on real data; do not inherit 8.
+
+`priority_quadrant` defines the shaded region in the breakdown scatter (`docs/DESIGN.md` §6.1). The rate threshold is the computed overall rate for whatever filters are active, never a hardcoded number. The volume threshold varies by dimension because 10% of volume is a large carrier and an impossible lane.
 
 `exception_counts_as_late` is the one genuinely contested definition here. Exceptions average 8.5 transit days against 3.3 for clean deliveries, so operationally they are late — but they may be late for reasons outside the carrier's control (customs, refusal, damage). Default `false`, exposed as config, and every answer using `delay_rate` states which convention applied.
 
@@ -304,7 +312,10 @@ metrics:
     expr: (fct_orders.delivery_date - fct_orders.order_date)
     filter: fct_orders.delivery_date IS NOT NULL
     format: days_1dp
-    notes: Order date to delivery date. Only completed orders contribute.
+    notes: >
+      Order date to delivery date. Only completed orders contribute: 30 of 400
+      orders have no delivery_date (27 in transit, 3 canceled) and are excluded
+      from the denominator. Surfaced on the KPI card, not just in the panel.
 
   p90_transit_days:
     label: 90th percentile transit days
@@ -383,40 +394,54 @@ dimensions:
     type: categorical
     values: [DHL, DPD, FedEx, GLS, LaserShip, OnTrac, Royal Mail, UPS, USPS]
 
-  origin_region:
-    label: Origin region
+  region:
+    label: Region
     expr: fct_orders.region
     type: categorical
     values: [EU, UK, US-C, US-E, US-W]
-    notes: Region of the originating warehouse, not the destination.
+    notes: >
+      All 47 lanes in this dataset are intra-region, so origin region and
+      destination region are the same value. Split into origin_region and
+      destination_region only when cross-region lanes appear.
 
   origin_city:
     label: Origin city
     expr: fct_orders.origin_city
     type: categorical
     approx_cardinality: 9
-    parent: origin_region
+    parent: region
+    groupable: false
+    notes: 1:1 with warehouse. Filterable; group by warehouse instead.
 
   destination_city:
     label: Destination city
     expr: fct_orders.destination_city
     type: categorical
     approx_cardinality: 47
-    notes: Each destination is served by exactly one origin, so this is equivalent to a lane.
+    groupable: false
+    notes: >
+      Filterable only. Partitions identically to lane (0 of 47 destinations
+      have more than one origin), so grouping by it would draw the same chart
+      under a different name.
 
   warehouse:
     label: Warehouse
     expr: fct_orders.warehouse
     type: categorical
     approx_cardinality: 9
-    parent: origin_city
-    notes: One warehouse per origin city in this dataset.
+    parent: region
+    notes: One warehouse per origin city in this dataset, so this is the origin grain.
 
   lane:
     label: Lane
     expr: fct_orders.origin_city || ' → ' || fct_orders.destination_city
     type: categorical
     approx_cardinality: 47
+    notes: >
+      The only destination grain. destination_city partitions identically
+      (0 of 47 destinations have more than one origin), so it stays a
+      filterable column rather than a second dimension that would draw the
+      same chart under a different chip.
 
   order_status:
     label: Status
@@ -484,16 +509,18 @@ glossary:
     maps_to: metric.on_time_rate
   - terms: [shipper, courier, 3PL, transporter, delivery company]
     maps_to: dimension.carrier
-  - terms: [lane, route, corridor]
+  - terms: [lane, route, corridor, destination, destination city, ship-to]
     maps_to: dimension.lane
   - terms: [DC, FC, fulfilment centre, depot]
     maps_to: dimension.warehouse
   - terms: [revenue, sales, turnover, GMV]
     maps_to: metric.gross_revenue
     note: Gross of promotional discount. Use net_revenue when the user says "net" or "after discount".
-  - terms: [region, territory, market]
-    maps_to: dimension.origin_region
-    note: Origin region. If the user clearly means destination, clarify rather than guess.
+  - terms: [region, territory, market, origin region, destination region]
+    maps_to: dimension.region
+    note: >
+      One region dimension. Every lane is intra-region on this data, so origin
+      and destination region resolve to the same value; the answer says so.
   - terms: [problem orders, issues, failures]
     maps_to: metric.exception_count
     note: Ambiguous. Prefer clarify between exceptions, delays, and cancellations.
@@ -507,10 +534,6 @@ unanswerable:
     reason: No cost columns in this dataset.
   - pattern: customer name, address, contact details
     reason: Only client_id is present; no customer master data.
-  - pattern: destination region, delivery region
-    reason: >
-      region is the origin region. Destination has city granularity only,
-      with no region rollup available.
 ```
 
 The `unanswerable` block does real work. Without it the planner will cheerfully map "which orders are running late" onto `delayed_count`, answering a different question with a plausible number.
@@ -534,7 +557,7 @@ The `unanswerable` block does real work. Without it the planner will cheerfully 
     "range": { "kind": "relative", "n": 3, "unit": "month", "complete_periods": true }
   },
   "filters": [
-    { "field": "origin_region", "op": "in", "value": ["US-E", "US-W"] }
+    { "field": "region", "op": "in", "value": ["US-E", "US-W"] }
   ],
   "sort": [{ "by": "delay_rate", "dir": "desc" }],
   "limit": 20,
@@ -626,6 +649,7 @@ One retry per tier, then stop. Keep a `Planner` interface with an OpenRouter imp
 | Filter op legal for field type | `invalid_operator` |
 | Filter value in declared `values` | `invalid_value` |
 | `sku` used as a grain without a filter | `unbounded_scan` |
+| Dimension declared `groupable: false` used as a grain | `not_groupable` |
 | Time grain present when the result is a trend | `missing_grain` |
 | Requested range intersects dataset coverage | `out_of_coverage` |
 | Limit within cap | `limit_exceeded` |
@@ -712,7 +736,9 @@ Dispatched on `intent: "forecast"`. Parameter extraction is the model's only rol
 | More than 30% zero periods | Proceed but downgrade to `moving_average`, widen intervals, set `sparse_series: true` |
 | Total observations < 24 | Attach a low-confidence banner |
 
-With 12 monthly points, a 4-month horizon sits exactly at the 2× guard. The service should return that forecast, and it should look visibly uncertain — wide bands are the honest output here, not a defect. BRUSH and MARKER both have zero months in 2025, so the sparse-series path will fire in normal use.
+With 12 monthly points, a 4-month horizon sits exactly at the 2× guard. The service should return that forecast, and it should look visibly uncertain — wide bands are the honest output here, not a defect.
+
+**The sparse-series guard does not fire on this dataset.** The worst category is BRUSH at 2 zero months of 12 (17%), then MARKER and PAINT at 1 each; nothing reaches 30% at any grain. The threshold stays at 30% rather than being tuned down to make the branch demonstrable — that would be fitting the guard to mock data, exactly what §10 warns against. Every series here has 12 points, so the `< 24 observations` low-confidence banner fires on **every** forecast instead, which is the honest signal and covers the same ground.
 
 **Method selection.** Hold out the last `min(horizon, 4)` periods, fit `moving_average`, `linear_trend`, `ses` and `holt` on the remainder, score by MAPE (MAE when any actual is zero), pick the winner, refit on full history. Ties within 2% go to the simpler model. Return all candidate scores — showing the models that lost is what makes the winner credible.
 
@@ -737,6 +763,8 @@ When `current_on_hand` is null, return the reorder point and order-up-to level, 
 ---
 
 ## 7. Raw SQL escape hatch
+
+> **Deferred in v1** (`docs/SPEC.md` §10). Specified, not built. With no raw-SQL path, every answer in the first release is `trust: "verified"` — the trust field and the pin restriction below still ship, so the gate does not have to be retrofitted later.
 
 For questions the layer can't express. Explicitly second-class.
 
@@ -768,6 +796,8 @@ The pinning restriction is what stops unverified answers laundering into trusted
 ---
 
 ## 8. Coverage observability
+
+> **Partly deferred in v1** (`docs/SPEC.md` §10). §8.1's query log ships — every request writes a row from day one, because retrofitting logging throws away the most informative weeks of usage there are. §8.2–8.8 (SQL feature extraction, clustering, gap taxonomy, coverage report, promotion workflow, SLIs) are designed here and not built.
 
 Raw SQL usage is not an error log. It is the product's roadmap, and it is instrumented as a first-class telemetry surface.
 
@@ -885,9 +915,10 @@ COVERAGE GAP REPORT — week of 2026-08-31          layer v2026.08.19a
      promo spend, markdown
 
 2. source_gap · 14 questions · 6 users
-   "Delay rate by destination region"
-   destination_city has no region rollup in the source
-   → Requires a dimension table: destination_city → region. Upstream change.
+   "Was this order late against its promised date?"
+   No promised_date column exists in the source
+   → Requires the field upstream. This is the root cause of §2.1: without it,
+     lateness stays a recorded status rather than a computed comparison.
 
 3. missing_operation · 9 questions · 5 users
    "Which carriers got worse compared to last quarter?"
@@ -986,7 +1017,7 @@ Answer text is written from the returned result set, after execution. It never s
 
 ### 9.1 Sufficiency guard
 
-Runs after execution, before the answer text is written. It is a deterministic check on the result set, not a model judgement, and it changes what the answer is allowed to claim. Visual treatment for each state is specified in `chart-design-spec-v0.4.md` §7.
+Runs after execution, before the answer text is written. It is a deterministic check on the result set, not a model judgement, and it changes what the answer is allowed to claim. Visual treatment for each state is specified in `docs/DESIGN.md` §8.
 
 **Small group check.** Any group whose denominator is below that dimension's `min_group_size` (§3.2) is flagged. The chart marks it; the warning names it and quantifies the sensitivity. Where the dimension's threshold sits below the default, the response states that too — a lane rate computed on 11 deliveries is reportable but not bankable, and the user should be told which it is.
 

@@ -1,9 +1,9 @@
 # Chart Area — Design Specification
 
-**Version:** 0.4
+**Version:** 0.5
 **Scope:** Visual system for every chart, tile and data surface in the logistics dashboard and in NL query answers.
-**Companion:** `nl-analytics-spec-v0.2.md` — chart *selection* rules live in §6.2 there; this document covers how the selected chart looks.
-**Changes from 0.3:** adds §6, named components — the breakdown scatter that replaces the separate carrier and lane tiles, and the rule that dashboard tables rank by problem rather than recency.
+**Companion:** `docs/Natural_language_query_spec.md` — chart *selection* rules live in §6.2 there; this document covers how the selected chart looks. Product scope and the built/deferred split are in `docs/SPEC.md`.
+**Changes from 0.4:** cross-references now use real filenames; the distribution chart's tail threshold is named and defined; the scatter states its switchable dimensions and its sample-size coverage caption.
 
 ---
 
@@ -99,7 +99,7 @@ series-4  #5A999E   teal
 series-5  #B4B4BC   graphite-400
 ```
 
-Five is the ceiling. Beyond that the selector collapses to top-4-plus-other (`nl-analytics-spec §6.2`) rather than extending the ramp.
+Five is the ceiling. Beyond that the selector collapses to top-4-plus-other (`Natural_language_query_spec.md` §6.2) rather than extending the ramp.
 
 ---
 
@@ -132,7 +132,7 @@ Delivered and in-transit take the product's icon colors unchanged — they mean 
 
 The amber is remapped. Track & Trace has no *delayed* state, and its exception icon amber becomes the dashboard's `problem` fill, with exception moving to a darker stop of the same hue. The reasoning: delayed is the more common failure (55 orders against 11), so it gets the more visible treatment, and darker-means-worse is legible without a legend. Reusing the icon amber for exception directly would have left delayed as the only colorless failure state, inverting the emphasis.
 
-In transit takes a cool, non-judgmental color. It is not a failure — those orders simply haven't resolved — and the data cannot say whether they are late (`nl-analytics-spec §2.5`).
+In transit takes a cool, non-judgmental color. It is not a failure — those orders simply haven't resolved — and the data cannot say whether they are late (`Natural_language_query_spec.md` §2.5).
 
 > **Inherited ambiguity.** In Track & Trace, the *Fulfilled* pill is amber (`#F4D9AC`) while the *Exception* icon is also amber (`#A68538`) — a positive and a failure state sharing a hue on one screen. This dashboard uses amber for problems only. Raise the conflict at the source; until it is resolved, never rely on amber alone here — always show the label alongside it, which the pills and the status bar already do.
 
@@ -160,7 +160,9 @@ Where on-time is compared against delayed as two lines, use direct end-of-line l
 
 **Areas.** Use the family `tint` stop directly; it is already calibrated. Never stack more than three.
 
-**Distribution charts.** Where the tail is the story — transit time is the case here — render the body in `graphite-300` and the tail beyond the threshold in `ink`. The eye should land on the 21 orders taking 8 to 12 days, not on the mode.
+**Distribution charts.** Where the tail is the story — transit time is the case here — render the body in `graphite-300` and the tail at or beyond `tail_threshold_days` in `ink`. The threshold is a semantic-layer parameter (`Natural_language_query_spec.md` §3.2), set to 8 days: the p95 of completed transit, above which sit 21 orders spanning 8 to 12 days. The eye should land on those, not on the mode at 4 days.
+
+Two `reference` lines, both labelled inline: the **mean** (3.83 days) and the **p90** (6 days). Carrying both is the point of the chart — the mean sits inside the body and says nothing about the orders that generate complaints, while p90 is the number a service target can actually be set against. A distribution chart that shows only its average has hidden its own subject.
 
 **Reference lines.** `reference`, 1px, dashed `4 3`, inline right-aligned label. Used for SLA thresholds and the all-groups average in any comparison chart.
 
@@ -172,7 +174,7 @@ Where on-time is compared against delayed as two lines, use direct end-of-line l
 
 ## 6. Named components
 
-Two tiles have rules that are not derivable from the generic chart-selection table in `nl-analytics-spec §6.2`. They are specified here.
+Two tiles have rules that are not derivable from the generic chart-selection table in `Natural_language_query_spec.md` §6.2. They are specified here.
 
 ### 6.1 Breakdown scatter
 
@@ -189,9 +191,13 @@ Replaces the separate carrier and lane scorecards. One component, one switchable
 
 **Size is not an encoding.** Points are a fixed radius. Size reads as importance, and volume already holds that meaning on the x-axis — a large point would say "this matters" while meaning "this is slow." Two channels claiming the same intuition is worse than leaving one unused.
 
-**Priority quadrant.** Shade the region below the target line and right of the volume threshold in `#FDF6EA`, labeled "High volume, below target". Both bounds come from `nl-analytics-spec §3.2 priority_quadrant` — the rate threshold is the computed overall rate under the active filters, never a hardcoded number, and the volume threshold varies by dimension because 10% of volume is a large carrier and an impossible lane.
+**Priority quadrant.** Shade the region below the target line and right of the volume threshold in `#FDF6EA`, labeled "High volume, below target". Both bounds come from `Natural_language_query_spec.md` §3.2 `priority_quadrant` — the rate threshold is the computed overall rate under the active filters, never a hardcoded number, and the volume threshold varies by dimension because 10% of volume is a large carrier and an impossible lane.
 
 Orientation matters and is easy to get backwards: the y-axis runs low-to-high upward, so below target is **below** the line. The shaded region is bottom-right, not top-right.
+
+**Dimensions.** The switcher offers carrier, region, warehouse, product category, lane and client. Origin city is omitted — it is 1:1 with warehouse — and destination city is omitted because it partitions identically to lane. SKU is never offered.
+
+**Sample-size coverage.** The tile states how much of the dimension clears its floor, as a 12px `--text-muted` caption under the title: "10 of 47 lanes meet the minimum sample of 10. The rest are shown hollow and are indicative only." Silently muting three quarters of the points and saying nothing is the failure this caption exists to prevent.
 
 **Sufficiency.** Groups under that dimension's `min_group_size` render as hollow circles — white fill, 1.5px stroke in their transit color — rather than muted fills. A hollow point keeps its true position, so a promising small carrier is still visible as promising, while the outline says the value isn't bankable. This is the one place where §8.1's muted-fill rule does not apply.
 
@@ -252,6 +258,8 @@ Charts from the raw SQL path (`trust: "unverified"`):
 
 The difference must be obvious across a room, because the failure mode is someone screenshotting an unverified chart into a deck.
 
+> **v1 scope.** The raw-SQL path is deferred (`docs/SPEC.md` §10), so `trust: "unverified"` is unreachable in the first release and this treatment renders for nothing. It stays specified — the pin restriction it enforces is why the pin control can be built now without a gate that later has to be retrofitted.
+
 ### 8.4 Flat distribution
 
 When the distribution test returns p > 0.20, render every bar in `muted` with a single `reference` line at the overall rate, plus a 12px caption: "Differences are within normal variation at these sample sizes." Delay broken down by region, category or warehouse on the current dataset always lands here.
@@ -292,4 +300,6 @@ Two weights only, 400 and 500. Tabular figures on every number in a table or axi
 - Does the empty state say why it is empty?
 - Does the tooltip show `n` for every ratio metric?
 - On a scatter, is the priority quadrant below the target line rather than above it?
+- Does the scatter state how many groups clear the sample floor?
+- Does the distribution chart show p90 as well as the mean?
 - Is every table ranked by a problem rather than by recency?
