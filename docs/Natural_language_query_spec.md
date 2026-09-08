@@ -3,6 +3,7 @@
 **Version:** 0.3
 **Dataset:** `mock_logistics_data.csv` — 400 rows, 17 columns, order grain, calendar year 2025
 **Companions:** `docs/SPEC.md` (product scope, built/deferred split) · `docs/DESIGN.md` (visual system)
+**Changes from 0.3:** `p90_transit_days` declares `percentile_disc`; §6.1 gains a dialect section (SQLite today, Postgres later); tier-2 routing and the planner retry are deferred; Holt leaves the forecast candidate set; the raw-SQL path is deferred with the trust field still shipping.
 **Changes from 0.2:** every claim re-checked against the CSV. `origin_region` becomes `region` — all 47 lanes are intra-region, so destination region is derivable and no longer `unanswerable`; `destination_city` collapses into `lane`; `tail_threshold_days` added; the sparse-series and promo-χ² claims corrected; cross-references use real filenames.
 
 ---
@@ -319,7 +320,7 @@ metrics:
 
   p90_transit_days:
     label: 90th percentile transit days
-    agg: percentile
+    agg: percentile_disc
     percentile: 0.90
     expr: (fct_orders.delivery_date - fct_orders.order_date)
     filter: fct_orders.delivery_date IS NOT NULL
@@ -638,6 +639,8 @@ Tier 2: stronger model, validator errors appended to the prompt
                     intent = clarify
 ```
 
+> **v1 scope.** Single tier, no retry: a failed plan goes straight to `clarify`. Tier 2 is specified here and deferred (`docs/SPEC.md` §10). The `Planner` interface exists so adding it is a new implementation rather than a change to the call site.
+
 One retry per tier, then stop. Keep a `Planner` interface with an OpenRouter implementation behind it — the lock-in worth avoiding is prompt-and-catalog lock-in, not SDK lock-in.
 
 ### 5.4 Validator
@@ -666,11 +669,26 @@ Key on `normalized_question + layer_version + glossary_version + data_as_of`. Ca
 
 ### 6.1 Compiler
 
+The same IR compiles to SQLite today and Postgres later. The dialect differences are in one file (`worker/dialect.ts`) and are exercised by a test, which is what makes §11's migration a swap rather than a rewrite.
+
+| Concern | SQLite (D1, today) | Postgres (later) |
+|---|---|---|
+| Transit days | `julianday(delivery_date) - julianday(order_date)` | `(delivery_date - order_date)` |
+| Month grain | `strftime('%Y-%m', order_date)` | `to_char(date_trunc('month', order_date), 'YYYY-MM')` |
+| Ratio cast | `CAST(x AS REAL)` | `(x)::numeric` |
+| Percentile | `CUME_DIST()` CTE, `MIN(v) WHERE cd >= p` | native `PERCENTILE_DISC` |
+| Table | `fct_orders` | `analytics.fct_orders` |
+| Aggregate filter | `FILTER (WHERE …)` — supported since SQLite 3.30 | `FILTER (WHERE …)` |
+
+Semantic-layer expressions stay dialect-free: they use plain column references, portable arithmetic, `||`, and one portable function, `date_diff(a, b)`, which the compiler maps per dialect. Business logic never contains SQL flavour.
+
 1. No joins on this dataset; emit against `fct_orders` directly.
 2. Metric-level `filter` clauses compile to `FILTER (WHERE ...)` inside the aggregate — **never** to a `WHERE` clause. `delayed_count` and `completed_count` routinely appear in the same query, and a `WHERE` would corrupt the sibling. This is the single most important compiler rule.
 3. Ratio metrics emit `numerator / NULLIF(denominator, 0)` at the final grain, never an average of per-row ratios.
 4. Query-level filters → `WHERE`. `GROUP BY` all dimensions plus the truncated time expression. Then `ORDER BY`, then `LIMIT`.
-5. Execute as a read-only role, 15s statement timeout, request ID in a SQL comment.
+5. Metric filters may reference layer parameters as `{{name}}` — `delayed_count` is `status IN {{delayed_statuses}}`, derived from `exception_counts_as_late`. This is what makes the parameters do work rather than document intent, and it is what conformance test 1 exercises.
+6. Every ratio drags its denominator into the result set whether or not the caller asked for it. No rate is ever displayed without its `n`, so the sufficiency guard and the tooltip always have one.
+7. Execute as a read-only role, 15s statement timeout, request ID in a SQL comment.
 
 Illustrative output for "delay rate by carrier":
 
@@ -740,7 +758,11 @@ With 12 monthly points, a 4-month horizon sits exactly at the 2× guard. The ser
 
 **The sparse-series guard does not fire on this dataset.** The worst category is BRUSH at 2 zero months of 12 (17%), then MARKER and PAINT at 1 each; nothing reaches 30% at any grain. The threshold stays at 30% rather than being tuned down to make the branch demonstrable — that would be fitting the guard to mock data, exactly what §10 warns against. Every series here has 12 points, so the `< 24 observations` low-confidence banner fires on **every** forecast instead, which is the honest signal and covers the same ground.
 
-**Method selection.** Hold out the last `min(horizon, 4)` periods, fit `moving_average`, `linear_trend`, `ses` and `holt` on the remainder, score by MAPE (MAE when any actual is zero), pick the winner, refit on full history. Ties within 2% go to the simpler model. Return all candidate scores — showing the models that lost is what makes the winner credible.
+**Method selection.** Hold out the last `min(horizon, 4)` periods, fit `moving_average`, `linear_trend` and `ses` on the remainder, score by MAPE (MAE when any actual is zero), pick the winner, refit on full history. Ties within 2% go to the simpler model. Return all candidate scores — showing the models that lost is what makes the winner credible.
+
+Holt is out of scope: 12 monthly points cannot support a trend-plus-level decomposition, let alone seasonality (`docs/tech-stack.md` §6.3).
+
+**Zero-fill runs through the data anchor, not to the last observed period.** A `GROUP BY` returns no row for a month with no orders, so filling only between the first and last row present drops a trailing zero — which shortens the series and biases a trend fit upward by deleting an observation of zero demand at exactly the end the projection hinges on.
 
 **Intervals.** Residual standard deviation from the backtest, widened by `sqrt(h)` at step h. Report 80% and 95%. Never narrower than backtest error.
 

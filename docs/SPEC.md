@@ -1,7 +1,8 @@
 # Logistics Analytics Dashboard — Specification
 
-**Version:** 1.0
-**Companions:** `docs/DESIGN.md` (chart visual system) · `docs/Natural_language_query_spec.md` (NL analytics architecture) · `docs/wireframes/full_dashboard_wireframe_v4_with_breakdown_scatter.html`
+**Version:** 1.1
+**Companions:** `docs/tech-stack.md` (stack decision record) · `docs/DESIGN.md` (chart visual system) · `docs/Natural_language_query_spec.md` (NL analytics architecture) · `docs/wireframes/full_dashboard_wireframe_v4_with_breakdown_scatter.html`
+**Changes from 1.0:** reconciled with `docs/tech-stack.md` — Cloudflare D1 replaces Postgres as the runtime engine, the chart set is four plus the scatter, and §10's built/deferred split is settled.
 
 ---
 
@@ -23,11 +24,17 @@ Every number on every surface is computed. The AI layer interprets the question 
 
 ## 2. Data source
 
-Mock data in `../mock_logistics_data.csv` (repo root), loaded into **PostgreSQL** as `analytics.fct_orders`.
+Mock data in `../mock_logistics_data.csv` (repo root), loaded into **Cloudflare D1** as `fct_orders`. `better-sqlite3` backs local development and the test suite against the same schema, so dialect surprises surface on the laptop rather than in a deploy.
 
-Postgres is not optional. The compiler in `docs/Natural_language_query_spec.md` §6.1 emits `FILTER (WHERE …)`, `NULLIF`, `::numeric`, `||` string concatenation and date subtraction — all Postgres. Local Postgres for development, managed Postgres for the deployed instance; same schema either way.
+The engine choice is a terms decision, not a technical one, and `docs/tech-stack.md` §2 sets it out: the free tiers that permit commercial use are the constraint, and D1 needs no second vendor. What matters for this spec is that **nothing above the `Database` interface knows which engine is underneath**:
 
-**The application has no write path.** Access is through a read-only role with a 15 s statement timeout. Data is loaded once by a seeding script that runs outside the application.
+```ts
+interface Database { run(sql, params): Promise<Row[]> }
+```
+
+D1, Neon, Postgres and `better-sqlite3` all satisfy it, and `worker/dialect.ts` carries the SQL differences — `julianday` against native date subtraction, a `CUME_DIST` CTE against native `PERCENTILE_DISC`. A test compiles the same plan through both emitters. Moving to Postgres is a one-line change of which dialect the compiler is handed; the semantic layer, IR, validator and chart rules are untouched.
+
+**The application has no write path over the fact table.** Data is loaded once by a seeding script that runs outside the request path. The only table the application writes is the query log.
 
 ---
 
@@ -111,8 +118,11 @@ Cached, each with a refresh control (refresh icon).
    **Caveat required.** `in_transit_count` and `canceled_count` are declared `point_in_time: false`. The 27 in-transit orders are spread evenly across all twelve months and carry no capture timestamp, so this tile is an **untimed total only**: it must not be trended or grouped by a time grain, and it must display the caveat whenever a date filter is active.
 4. **Delivery-days distribution** — order count by transit days.
    The tail is the story. Mean transit is 3.83 d, p90 is 6 d, and the slowest order took 12 d — the mean hides exactly the orders that generate complaints, so **p90 is the number to manage against, not the average**. The chart carries both as reference lines and renders the tail beyond `tail_threshold_days` (8 d, the p95, 21 orders) in `ink` per `docs/DESIGN.md` §5.
-5. **On-time delivery rate by carrier.**
-6. **Breakdown scatter** — see §6.3.
+5. **Breakdown scatter** — see §6.3.
+
+Four charts, not five. A separate on-time-rate-by-carrier bar was in the earlier draft and is gone: the scatter's carrier dimension shows the same rate against volume and sample size, which is strictly more useful. The brief's minimum — order volume over time, delivery performance, and a carrier or destination breakdown — is met by charts 2, 1 and 5 respectively.
+
+Every chart is a declared query. The transit histogram groups by a `transit_days` dimension in the semantic layer rather than by hand-written SQL, so it goes through the same validator and explain builder as everything else.
 
 ### 6.3 Breakdown scatter
 
@@ -171,6 +181,8 @@ Invalidated by a data reload (`data_as_of` moves) or a semantic-layer commit (`l
 
 This is a different cache from the NL planner's IR cache (`docs/Natural_language_query_spec.md` §5.5), which keys on the normalized question and stores the query plan rather than the result.
 
+The store is an in-isolate map, deliberately not the Workers Cache API: `caches.default` is a no-op on `workers.dev` subdomains and would silently do nothing in a preview deploy. At 400 rows the database is a millisecond away, so this exists to make the refresh semantics real rather than to save time.
+
 ---
 
 ## 7. Natural language query
@@ -221,7 +233,9 @@ Refusing is the correct answer. Fitting a line through 1.13 points and rendering
 
 ### 8.3 Method selection stays backtest-driven
 
-Hold out the last `min(horizon, 4)` periods, fit `moving_average`, `linear_trend`, `ses` and `holt` on the remainder, score by MAPE (MAE when an actual is zero), pick the winner, refit on full history. Ties within 2% go to the simpler model. **All candidate scores are returned** — showing the models that lost is what makes the winner credible.
+Hold out the last `min(horizon, 4)` periods, fit `moving_average`, `linear_trend` and `ses` on the remainder, score by MAPE (MAE when an actual is zero), pick the winner, refit on full history. Ties within 2% go to the simpler model. **All candidate scores are returned** — showing the models that lost is what makes the winner credible.
+
+Holt is out: 12 monthly points cannot support a trend-plus-level decomposition. Residual spread comes from the backtest rather than from the fit, because a model scored on data it has already seen produces intervals that are too narrow.
 
 ### 8.4 Honest uncertainty
 
@@ -255,23 +269,24 @@ The brief budgets 6–10 hours and says plainly: do not over-engineer. The compa
 
 **Built:**
 
-- Semantic layer, validator, compiler (`Natural_language_query_spec.md` §3–5.4, §6.1)
-- Chart selector including the breakdown scatter (§6.2, `DESIGN.md` §6.1)
-- Dashboard: 5 cards, 5 charts, the scatter, filters, tile cache and refresh
-- Planner: single tier, forced tool call, IR cache (§5.1, §5.2, §5.5)
-- Explainability panel and the sufficiency guard (§9, §9.1)
+- Semantic layer, validator, compiler (`Natural_language_query_spec.md` §3–5.4, §6.1) — 21 metrics, 12 dimensions
+- Chart selector, four charts and the breakdown scatter (§6.2, `DESIGN.md` §6.1)
+- Dashboard: 5 cards, 4 charts, the scatter, filters, tile cache and refresh
+- Planner: single tier, one forced tool call (§5.1, §5.2)
+- Explainability panel on every tile and every answer, plus the full sufficiency guard — small-group, ranking, and the flat-distribution χ² (§9, §9.1)
 - Forecast service: guards, backtest method selection, intervals, inventory (§6.3)
 - Pinning in both directions (§7.1)
-- Query log table, write path only (§8.1)
-- Golden set, trimmed to roughly 20 pairs covering the traps in §10
+- Query log and a coverage page (§8.1)
+- Golden set of 24 behavioural cases, and the three conformance tests wired into CI (§1.2)
 
 **Deferred — documented in README Future Improvements, not started:**
 
-- Tier-2 model routing (§5.3)
+- Tier-2 model routing and the planner retry (§5.3)
 - Raw-SQL escape hatch and the unverified-trust surface (§7)
-- SQL feature extraction, question clustering, gap taxonomy, coverage report, promotion workflow, SLIs (§8.2–8.8)
-- The three conformance tests (§1.2) — stated as design, not wired into CI
+- SQL feature extraction, question clustering, gap taxonomy, promotion workflow, SLIs (§8.2–8.8)
 - The full 60–100 pair golden set
+
+Two of these moved after the stack review, and both are worth stating. The **raw-SQL path** is the larger piece of work — an allowlist, guards and three unverified-trust UI states for a path its own SLI targets at under 5% of traffic — so deferring it leaves every answer verified, which is a simpler claim to defend than a half-guarded escape hatch. The **flat-distribution χ²** went the other way: the statistic already existed in `scripts/verify_data_facts.py`, and it turns three of the five breakdown dimensions from misleading leaderboards into honest "within normal variation" results.
 
 ---
 
@@ -280,7 +295,7 @@ The brief budgets 6–10 hours and says plainly: do not over-engineer. The compa
 The README follows the brief's structure heading for heading:
 
 - **Setup** — local run steps, database seeding, environment variables
-- **Architecture** — system overview, key design decisions, data flow diagram
+- **Architecture** — system overview, key design decisions, data flow diagram. `docs/tech-stack.md` is the decision record behind it, and its §11 is the production migration path
 - **AI Approach**
   - *How questions are interpreted* — question → IR through a schema-constrained tool call; everything downstream is deterministic
   - *How tools are selected* — the planner emits one forced tool call carrying an `intent` enum; that enum **is** the routing decision, dispatched deterministically to the query tool or the forecast tool. One model decision instead of an agent loop, with the same two-tool outcome and no chance of the model reacting to intermediate results
@@ -293,10 +308,11 @@ The README follows the brief's structure heading for heading:
 
 ## 12. Deployment and security
 
-- Deployed to a publicly accessible URL, fully usable with no local setup
-- If authentication is added, test credentials ship with the submission
-- **No secrets in the repository.** Database URL and model API key come from environment variables; `.env.example` lists the names with empty values
-- The application connects as a read-only role (§2)
+- Deployed to Cloudflare Pages at a publicly accessible URL, fully usable with no local setup
+- No authentication, so no credentials to share. The data is mock and read-only
+- **No secrets in the repository.** `OPENROUTER_API_KEY` is a Worker secret (`wrangler secret put`), never a `var`, and never bundled into the SPA — a key on a public deployment is scraped and drained within hours. `.dev.vars.example` lists the names with empty values and `.dev.vars` is gitignored
+- The D1 binding is declared in `wrangler.toml`; there is no connection string to store, rotate or leak
+- The application has no write path over the fact table (§2)
 
 ---
 
@@ -320,3 +336,6 @@ Stated here so the README derives from the spec rather than being written twice.
 - **No cost, margin or freight-rate columns** — those questions are refused, not estimated
 - **No customer master data** — only `client_id`
 - **Most breakdowns are not statistically distinguishable.** Only carrier is even borderline (χ² p = 0.053); region, category, warehouse and promo all land above 0.65. The sufficiency guard enforces this rather than letting a leaderboard imply signal that is not there
+- **No raw-SQL fallback.** A question the semantic layer cannot express clarifies rather than falling through to generated SQL, so the coverage page shows clarify and refusal classes only (§10)
+- **P90 is discrete, not interpolated.** It reports a transit time some order actually had, and it is identical on SQLite and Postgres
+- **Dashboard tiles are not written to the query log.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface

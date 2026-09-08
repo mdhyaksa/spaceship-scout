@@ -1,5 +1,5 @@
 /**
- * One row per request, whatever path it took.
+ * One row per question.
  *
  * The log ships in this release even though the clustering and coverage
  * machinery it feeds does not, because retrofitting logging after launch
@@ -8,6 +8,10 @@
  * perfectly and answered nothing, which is invisible if you only watch error
  * rates; `path` separates a refusal that was correct from a failure that was
  * not.
+ *
+ * Dashboard tiles are deliberately not logged. They are fixed plans rather
+ * than questions, and nine rows per page load would bury the fall-throughs
+ * the coverage report exists to surface.
  */
 import type { Database } from './db.ts';
 import type { Layer } from '../shared/layer-types.ts';

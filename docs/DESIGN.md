@@ -174,7 +174,7 @@ Two `reference` lines, both labelled inline: the **mean** (3.83 days) and the **
 
 ## 6. Named components
 
-Two tiles have rules that are not derivable from the generic chart-selection table in `Natural_language_query_spec.md` §6.2. They are specified here.
+The dashboard ships four charts — the delivery-performance composition bar, order volume, the transit-time histogram, and the breakdown scatter — plus the forecast chart on its own view. Three of them fall out of the generic chart-selection table in `Natural_language_query_spec.md` §6.2. The two below do not, and are specified here.
 
 ### 6.1 Breakdown scatter
 

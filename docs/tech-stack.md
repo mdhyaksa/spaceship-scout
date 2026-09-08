@@ -1,8 +1,9 @@
 # Tech Stack — Decision Record
 
-**Version:** 1.0
+**Version:** 1.1
 **Context:** Working prototype of the NL analytics dashboard, 6–10 hours of AI-assisted build, zero infrastructure spend.
-**Companions:** `nl-analytics-spec-v0.2.md`, `chart-design-spec-v0.4.md`
+**Companions:** `docs/SPEC.md` (product scope), `docs/Natural_language_query_spec.md`, `docs/DESIGN.md`
+**Changes from 1.0:** every dialect claim in §5.1 verified against SQLite 3.50 with this dataset, and two worked numbers corrected. The raw-SQL path moves from ship to drop (§8), the flat-distribution test from drop to ship, and `POST /api/sql` leaves the route list.
 
 ---
 
@@ -14,7 +15,7 @@
 | No spend | Free tiers only, and the plan terms must permit commercial use |
 | Commercial project | Rules out several otherwise-obvious free tiers |
 | 400-row dataset | No database sizing, indexing or query optimisation problem exists |
-| Must demo the architecture, not just the output | The three-layer separation (`nl-analytics-spec §1.2`) has to be visible and defensible |
+| Must demo the architecture, not just the output | The three-layer separation (`Natural_language_query_spec.md` §1.2) has to be visible and defensible |
 
 The dataset size is the most under-appreciated constraint. At 400 rows nothing is slow, so every decision below is about setup time, dialect fidelity and demo credibility — never performance.
 
@@ -104,10 +105,10 @@ At 400 rows a browser database is genuinely fast and free. PGlite is ~3.3 MB gzi
 
 The problem is that it quietly guts two things the spec insists on:
 
-- **`nl-analytics-spec §7.2` guards become theatre.** A read-only role, a statement timeout and a table allowlist mean nothing when the engine runs in the user's own tab and the console can execute arbitrary SQL against it. The prototype would demonstrate a security model it does not have.
-- **`§1.2` layer separation collapses.** The three-layer story — business logic, AI interpretation, computation — is what a stakeholder is being asked to approve. Running computation inside the UI bundle makes that harder to argue even though the code is genuinely separated.
+- **`Natural_language_query_spec.md` §7.2 guards become theatre.** A read-only role, a statement timeout and a table allowlist mean nothing when the engine runs in the user's own tab and the console can execute arbitrary SQL against it. The prototype would demonstrate a security model it does not have.
+- **`Natural_language_query_spec.md` §1.2 layer separation collapses.** The three-layer story — business logic, AI interpretation, computation — is what a stakeholder is being asked to approve. Running computation inside the UI bundle makes that harder to argue even though the code is genuinely separated.
 
-**Option D is rejected outright.** Hand-rolled JS aggregation would be the fastest thing to build, but the raw-SQL escape hatch (§7 of the analytics spec) needs a real SQL engine to fall back to, and the semantic layer's premise is that each metric declares its own SQL expression. Removing SQL removes the architecture.
+**Option D is rejected outright.** Hand-rolled JS aggregation would be the fastest thing to build, but the semantic layer's premise is that each metric declares its own SQL expression, and the raw-SQL escape hatch — deferred, but specified — needs a real engine to fall back to. Removing SQL removes the architecture.
 
 ### 4.3 Chosen: server-side
 
@@ -135,21 +136,33 @@ Headroom check: a `GROUP BY` over the fact table reads 400 rows, so the 5M daily
 
 SQLite has no `PERCENTILE_CONT`, and D1 cannot load the sqlite.org percentile extension — it is a managed service with no `load_extension()`, and even FTS5, which ships with SQLite, is unavailable. Extensions are only an option when running your own SQLite binary.
 
-Pure SQL handles it. Percentile metrics compile to a `CUME_DIST()` CTE joined back on the dimension keys (`nl-analytics-spec §6.1`). Verified against this dataset, the CTE returns values identical to Postgres `PERCENTILE_DISC` on every carrier, every region, the global no-dimension case and the two-dimension case, at roughly 1 ms per query.
+Pure SQL handles it. Percentile metrics compile to a `CUME_DIST()` CTE joined back on the dimension keys (`Natural_language_query_spec.md` §6.1).
+
+**Verified, not assumed.** Every construct this stack depends on was run against SQLite 3.50 with this dataset before any code was written, and again as a test (`tests/compile.test.ts`, `tests/parity.test.ts`):
+
+| Construct | Result |
+|---|---|
+| `COUNT(DISTINCT …) FILTER (WHERE …)` | Works. The compiler's most important rule survives SQLite |
+| `CAST(… AS REAL) / NULLIF(…, 0)` | 14.9% delay rate, matching the CSV |
+| `julianday(a) − julianday(b)` | 3.83 d mean transit |
+| `strftime('%Y-%m', …)` | Month grain |
+| `CUME_DIST` as `PERCENTILE_DISC` | p90 6 d, p95 8 d, identical to an independent derivation, and correct under a two-dimension `PARTITION BY` |
 
 Two points worth recording.
 
-**The semantic layer declares `percentile_disc`, not `percentile_cont`.** Discrete rather than interpolated, and this is the better definition on its own merits. "The 90th percentile order took 7 days" describes an order that exists; interpolation would report 6.4 days, which no order took. Postgres has `PERCENTILE_DISC` natively, so one metric definition produces identical numbers on both engines.
+**The semantic layer declares `percentile_disc`, not `percentile_cont`.** Discrete rather than interpolated, and this is the better definition on its own merits. On this dataset the 90th-percentile order took **6 days** — a duration some order actually had. Interpolation lands between observations and reports a figure no order took. Postgres has `PERCENTILE_DISC` natively, so one metric definition produces identical numbers on both engines.
 
-**Use `CUME_DIST`, never `PERCENT_RANK`.** They look interchangeable and are not. `PERCENT_RANK` is `(rank − 1) / (n − 1)` and overshoots — on this dataset it returns the wrong value for 3 of 9 carriers. `CUME_DIST` is `(rows ≤ current) / n`, which is exactly the definition `PERCENTILE_DISC` uses.
+**Use `CUME_DIST`, never `PERCENT_RANK`.** They look interchangeable and are not. `PERCENT_RANK` is `(rank − 1) / (n − 1)` and overshoots — measured on this dataset it disagrees with `PERCENTILE_DISC` for **4 of 9 carriers** (DHL, FedEx, UPS, USPS). `CUME_DIST` is `(rows ≤ current) / n`, which is exactly the definition `PERCENTILE_DISC` uses.
 
 ### 5.2 Why not Neon as the default
 
-Neon is the better engine and would be the right call with more hours. Its advantage is exact dialect continuity: the compiler emits one flavour of SQL from prototype through production, and `nl-analytics-spec §6.1` is written in Postgres syntax already.
+Neon is the better engine and would be the right call with more hours. Its advantage is exact dialect continuity: the compiler emits one flavour of SQL from prototype through production, and `Natural_language_query_spec.md` §6.1 is written in Postgres syntax already.
 
 It loses on two practical points. It is a second vendor to set up inside a 6–10 hour budget, and its free tier autosuspends, so the first question asked in a live demo pays a cold-start penalty. Both are manageable — a warm-up ping handles the second — but neither is free, and D1 costs nothing on either axis.
 
-**Upgrade path:** swap the D1 binding for a Neon client behind the `Database` interface, and let the compiler emit native `PERCENTILE_DISC` instead of the CTE. Numbers are unchanged either way, and that equivalence is verified rather than assumed. Everything else — semantic layer, validator, IR, chart rules — is untouched. That is the payoff of putting business logic in YAML rather than in code.
+**Upgrade path:** swap the D1 binding for a Neon client behind the `Database` interface, and let the compiler emit native `PERCENTILE_DISC` instead of the CTE. Everything else — semantic layer, validator, IR, chart rules — is untouched. That is the payoff of putting business logic in YAML rather than in code.
+
+The Postgres emitter already exists alongside the SQLite one in `worker/dialect.ts`, and a test asserts that the same IR produces `julianday(…)` on one and `(delivery_date - order_date)` on the other. The swap is a one-line change of which dialect the compiler is handed.
 
 ### 5.3 PGlite as the local development database
 
@@ -163,15 +176,17 @@ Not as the runtime. PGlite is Postgres in WASM, so if the project later moves to
 
 Not Recharts, not Chart.js, not visx.
 
-`chart-design-spec-v0.4.md` specifies hollow points for low samples, a shaded priority quadrant bounded by computed thresholds, muted fills, per-dimension sufficiency rules, target lines with inline labels, and a stacked composition bar carrying two denominators. Every one of those is a fight with a charting library's theming layer and a few lines of raw SVG.
+`docs/DESIGN.md` specifies hollow points for low samples, a shaded priority quadrant bounded by computed thresholds, muted fills, per-dimension sufficiency rules, target lines with inline labels, and a stacked composition bar carrying two denominators. Every one of those is a fight with a charting library's theming layer and a few lines of raw SVG.
 
 The charts needed are a stacked bar, a column chart, a histogram with a highlighted tail, and a scatter with quadrant shading. None requires an axis library; a `scaleLinear` helper is about ten lines.
 
-**One exception:** the forecast chart's confidence band. Recharts' `ComposedChart` with an `Area` handles the band-plus-line composition well. Mixing one library in for one chart is fine.
+**One exception:** the forecast chart's confidence band. Recharts' `ComposedChart` with an `Area` handles the band-plus-line composition well. Mixing one library in for one chart is fine — it is lazy-loaded with the forecast view, so the overview does not pay for it (185 kB main bundle against a 424 kB forecast chunk).
+
+**One thing raw SVG demands that a library would have handled:** a fixed `viewBox` scaled to a fluid container scales the type with it, so an 11px axis tick renders at 28px in a full-width tile. Charts measure their container and pin one SVG unit to one CSS pixel (`src/charts/useWidth.ts`).
 
 ### 6.2 LLM gateway — OpenRouter, one tool call
 
-Per `nl-analytics-spec §5.1`: a single forced tool call, `strict: true`, `provider: { require_parameters: true }`. No agent loop.
+Per `Natural_language_query_spec.md` §5.1: a single forced tool call, `strict: true`, `provider: { require_parameters: true }`. No agent loop.
 
 The Worker route builds the prompt, calls OpenRouter, validates the returned IR against the schema, and returns it. The OpenRouter call is I/O, so it does not consume the 10 ms CPU budget.
 
@@ -179,17 +194,19 @@ The Worker route builds the prompt, calls OpenRouter, validates the returned IR 
 
 ### 6.3 Forecast — hand-rolled, in the Worker
 
-Moving average, linear trend and simple exponential smoothing, with a backtest to select between them. Roughly 40 lines of TypeScript. `statsmodels` would be three lines but costs a Python service and a second deploy.
+Moving average, linear trend and simple exponential smoothing, with a backtest to select between them. `statsmodels` would be three lines but costs a Python service and a second deploy.
 
-Holt and seasonality are out of scope — 12 monthly points cannot support seasonal decomposition anyway (`nl-analytics-spec §6.3`).
+Holt and seasonality are out of scope — 12 monthly points cannot support seasonal decomposition anyway (`Natural_language_query_spec.md` §6.3).
 
 ### 6.4 Query log — D1, same database
 
-`nl-analytics-spec §8.1` wants the log persistent across sessions so the coverage loop can be demonstrated. `localStorage` cannot do that; a reviewer would only ever see their own queries.
+`Natural_language_query_spec.md` §8.1 wants the log persistent across sessions so the coverage loop can be demonstrated. `localStorage` cannot do that; a reviewer would only ever see their own queries.
 
 D1 is already there. An append-only log table costs one `CREATE TABLE` and one insert per request, well inside the 100K daily write limit.
 
-Skip for the prototype: embeddings, clustering, the gap taxonomy. Ship the log table and a plain `/coverage` page listing raw-SQL and clarify-path questions ordered by frequency. That demonstrates the loop without building the machinery.
+Skip for the prototype: embeddings, clustering, the gap taxonomy. Ship the log table and a plain `/coverage` page listing questions that clarified, were refused, or returned nothing, ordered by frequency. That demonstrates the loop without building the machinery.
+
+With the raw-SQL path deferred, those are the only fall-through classes there are — which is what the page should show. Dashboard tiles are not logged: they are fixed plans rather than questions, and logging nine of them per page load would bury the signal the page exists to surface.
 
 ---
 
@@ -197,16 +214,17 @@ Skip for the prototype: embeddings, clustering, the gap taxonomy. Ship the log t
 
 ```
 Vite + React + TypeScript      SPA, static assets
-  ├─ semantic layer YAML       bundled, imported as a typed object
-  ├─ IR types + validator      shared with the Worker
+  ├─ IR types + zod schema     shared with the Worker
   ├─ chart components          hand-rolled SVG, design spec tokens
-  └─ Recharts                  forecast band only
+  └─ Recharts                  forecast band only, lazy-loaded
 
 Cloudflare Worker
-  ├─ POST /api/plan            question → OpenRouter → validated IR
-  ├─ POST /api/query           IR → compiler → Database → result + explain
+  ├─ semantic layer            YAML → typed module at build time
+  ├─ GET  /api/layer           catalog the UI needs for labels and chips
+  ├─ POST /api/tiles           dashboard tiles, cached, refreshable per tile
+  ├─ POST /api/run             execute a stored plan (a pinned answer)
+  ├─ POST /api/query           question → OpenRouter → validated IR → result
   ├─ POST /api/forecast        ForecastSpec → backtest → projection
-  ├─ POST /api/sql             raw SQL path, guarded, trust: unverified
   └─ GET  /api/coverage        query log rollup
 
 Database interface            run(sql, params) — D1 today, Neon later
@@ -218,9 +236,14 @@ Cloudflare D1
 Cloudflare Pages               deploy target
 ```
 
+**The semantic layer lives in the Worker only.** The SPA fetches the catalog it
+needs for labels and filter chips from `/api/layer` rather than bundling the
+layer. Metric definitions, thresholds and the glossary never reach the browser,
+which is what makes the layer mapping below physical rather than conceptual.
+
 One vendor. One account. `wrangler deploy`. Total cost $0.
 
-**Layer mapping**, for the stakeholder conversation in `nl-analytics-spec §1.2`:
+**Layer mapping**, for the stakeholder conversation in `Natural_language_query_spec.md` §1.2:
 
 | Layer | Where it lives |
 |---|---|
@@ -247,16 +270,37 @@ The separation is physical, not just conceptual. That is the argument client-sid
 
 | Ship | Drop |
 |---|---|
-| Semantic layer, ~8 metrics, ~5 dimensions | Multiple datasets, joins, fan-out guard (no joins exist) |
+| Semantic layer, 21 metrics, 12 dimensions | Multiple datasets, joins, fan-out guard (no joins exist) |
 | IR, validator, compiler | `chart_hint` override |
 | Single-model planner, one tool call | Tier-2 routing, retry-on-validator-error |
-| Sufficiency guard, per-dimension thresholds | Flat-distribution χ² test |
+| Sufficiency guard, per-dimension thresholds | Clarify flow with option patches |
+| Flat-distribution χ² test | Raw SQL path, trust badge, regex allowlist |
 | P90 via `CUME_DIST` CTE | Interpolated percentiles |
-| Four charts | Everything else in the selection table |
+| Four charts + the breakdown scatter | Everything else in the selection table |
 | SES + linear trend + moving average, backtested | Holt, seasonality |
-| Explain panel: IR, SQL, filters, anchor | Clarify flow with option patches |
-| Query log + coverage list | Embeddings, clustering, gap taxonomy |
-| Raw SQL path + trust badge + guards | AST parser — use a strict regex allowlist |
+| Explain panel: IR, SQL, filters, anchor, warnings | Embeddings, clustering, gap taxonomy |
+| Query log + coverage list | Coverage clustering and promotion workflow |
+
+Two lines moved after the scoping conversation, and both are worth the note.
+
+**Metric count is not where the hours go.** All 21 metrics route through six
+aggregate paths the compiler has to implement regardless — `count_distinct`,
+`ratio`, `avg`, `sum`, `percentile_disc`, `max` — so declaring the full set
+costs YAML rather than code. Trimming to eight would have saved nothing and
+removed the gross-versus-net revenue trap the golden set exercises.
+
+**The raw-SQL path went the other way.** It is the larger of the two by far:
+the allowlist, the guards, and three unverified-trust UI states, for a path
+whose own SLI targets it at under 5% of traffic. Deferring it leaves every
+answer verified, which is a simpler thing to defend than a half-guarded
+escape hatch. The trust field and the pin gate still ship, so nothing has to
+be retrofitted when it lands.
+
+**The χ² test came in because the code already existed.** The statistic and
+its p-value were already written and passing in `scripts/verify_data_facts.py`;
+porting them to TypeScript was about 25 lines with no dependency. It earns its
+place: region, product category and warehouse all land above p = 0.9, so three
+of the five breakdown dimensions are honestly flat rather than leaderboards.
 
 ---
 
@@ -264,8 +308,9 @@ The separation is physical, not just conceptual. That is the argument client-sid
 
 | Risk | Mitigation |
 |---|---|
-| Date anchor bug — data ends 2025-12-30, today is 2026 | Hardcode `data_as_of` on day one. Every relative range resolves against it (`nl-analytics-spec §2.2`) |
+| Date anchor bug — data ends 2025-12-30, today is 2026 | Hardcode `data_as_of` on day one. Every relative range resolves against it (`Natural_language_query_spec.md` §2.2) |
 | SQLite dialect surprises in the compiler | Write the compiler against a local `better-sqlite3` with the same schema before touching D1 |
+| Workers Cache API is a no-op on `workers.dev` | Tile caching uses an in-isolate map keyed on the tile cache key, not `caches.default` |
 | Workers Free 10 ms CPU cap | I/O waits do not count, so the current design fits. Measure before adding CPU-heavy work such as SQL parsing or large serialisation |
 | OpenRouter latency 2–4s | Build the loading state early, not at the end |
 | Free-tier terms and quotas change often | Every number in this document has a short shelf life. Re-check before building, not after |
@@ -275,10 +320,11 @@ The separation is physical, not just conceptual. That is the argument client-sid
 
 ## 10. Honest limitations to state during the demo
 
-- The raw-SQL guard uses a regex allowlist rather than a real SQL parser. Production needs the parser (`nl-analytics-spec §7.2`), and its cost against the 10 ms CPU budget should be measured before adding it.
+- The raw-SQL escape hatch is not built. Every answer therefore comes through the semantic layer and is verified, and a question the layer cannot express clarifies rather than falling back to generated SQL. The guards, the trust marking and the pin restriction are specified (`Natural_language_query_spec.md` §7) and the trust field ships, so the path can land without retrofitting the surface around it.
 - P90 is a discrete percentile rather than interpolated. Deliberate: it reports a transit time some order actually had, and it is identical on SQLite and Postgres.
 - The forecast runs on 12 monthly points. Every projection shows a wide confidence band, and that is the correct output rather than a defect.
 - The coverage loop logs and ranks but does not cluster. Clustering is specified and deliberately deferred.
+- Dashboard tiles are not written to the query log. They are fixed plans rather than questions, and logging them would bury the fall-throughs the coverage page exists to surface.
 
 Stating these up front is worth more than hoping nobody asks. Each has a written answer in the specs, which is itself the point being demonstrated.
 
@@ -303,7 +349,7 @@ Written now because the migration cost depends almost entirely on decisions made
 | Database binding | **Replaced** |
 | Percentile emission | **Replaced** — native `PERCENTILE_DISC` instead of the CTE |
 
-Two things make this true rather than aspirational: business logic lives in YAML rather than code (`nl-analytics-spec §1.2`), and everything reaches the database through the one-method `Database` interface (§2.2).
+Three things make this true rather than aspirational: business logic lives in YAML rather than code (`Natural_language_query_spec.md` §1.2), everything reaches the database through the one-method `Database` interface (§2.2), and both claims are asserted by tests — flipping `exception_counts_as_late` in the YAML moves every delay figure with no code change, and the Postgres emitter is exercised alongside the SQLite one.
 
 The prototype is therefore not a throwaway. It is the first implementation of an architecture that survives.
 
@@ -367,7 +413,7 @@ CI
 
 **Postgres or ClickHouse.** Start with Postgres. A logistics operation doing a few million orders a year sits comfortably inside what Postgres handles with sensible indexes, and staying on one engine keeps the compiler simple. Move to ClickHouse when percentile and distribution queries across high-cardinality dimensions become the slow path — a measurable event, not a guess.
 
-**Adopt Cube or dbt Semantic Layer, or keep the hand-rolled one?** Keep the hand-rolled one. Cube would give caching and pre-aggregation for free, but the IR is not an implementation detail here — it *is* the explainability artifact the user sees (`nl-analytics-spec §4`, §9). Handing that shape to a third-party layer means accepting its query model or fighting it. The hand-rolled layer is a few hundred lines and you own its semantics. Revisit only if pre-aggregation becomes the bottleneck.
+**Adopt Cube or dbt Semantic Layer, or keep the hand-rolled one?** Keep the hand-rolled one. Cube would give caching and pre-aggregation for free, but the IR is not an implementation detail here — it *is* the explainability artifact the user sees (`Natural_language_query_spec.md` §4, §9). Handing that shape to a third-party layer means accepting its query model or fighting it. The hand-rolled layer is a few hundred lines and you own its semantics. Revisit only if pre-aggregation becomes the bottleneck.
 
 **dbt is not optional.** The prototype's `fct_orders` is a CSV. In production it is a model built from several sources, with the status logic and the transit-day derivation living in dbt rather than in metric expressions. The semantic layer then sits on clean models, which is where it belongs.
 

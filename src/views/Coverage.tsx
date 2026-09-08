@@ -28,9 +28,10 @@ export function Coverage() {
       <section className="card" style={{ padding: '12px 14px' }}>
         <h3 style={{ fontSize: 12, fontWeight: 500 }}>Coverage</h3>
         <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55, maxWidth: 640 }}>
-          Every request writes a row, whatever path it took. Questions that clarified, were refused, or ran
-          perfectly and returned nothing are listed below — each one is a candidate metric, dimension or
-          glossary term rather than a bug.
+          Every question asked of the chat writes a row, whatever path it took. The ones that clarified,
+          were refused, or ran perfectly and returned nothing are listed below — each is a candidate metric,
+          dimension or glossary term rather than a bug. Dashboard tiles are not logged: they are fixed plans
+          rather than questions, and they would bury the signal this page exists to surface.
         </p>
         <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
           {totals.map((t) => (
