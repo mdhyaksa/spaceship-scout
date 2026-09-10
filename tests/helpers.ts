@@ -1,13 +1,8 @@
-import { existsSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { nodeDatabase, LOCAL_DB } from '../db/db-node.ts';
+import { nodeDatabase } from '../db/db-node.ts';
 
-/** Seed once if the local database is missing, so `npm test` works on a fresh
- *  clone without a separate setup step. */
+/** The database is seeded once by tests/globalSetup.ts before any test file
+ *  loads, so this just opens it. */
 export function db() {
-  if (!existsSync(LOCAL_DB)) {
-    execFileSync('npx', ['tsx', 'db/seed.ts'], { stdio: 'inherit' });
-  }
   return nodeDatabase();
 }
 

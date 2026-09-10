@@ -8,33 +8,47 @@ The dataset is 400 mock orders covering calendar year 2025.
 
 ---
 
-## Setup
+## Running it locally
 
 Requires Node 20.19+.
 
 ```bash
 npm install
-npm run db:local        # CSV -> db/local.sqlite, for dev and tests
-npm test                # 64 tests, no API key needed
+npm run setup     # creates the local D1 and loads 400 rows — once
 ```
 
-Run it locally — two processes, because the Worker serves the API and Vite serves the SPA with hot reload:
+Then two terminals, because the Worker serves the API and Vite serves the SPA with hot reload:
 
 ```bash
-npm run db:schema:local
-npm run db:preview                       # seeds the local D1
-npx wrangler dev --local --port 8787     # terminal 1
-npm run dev                              # terminal 2, proxies /api to 8787
+npm run dev:api   # terminal 1 — Worker on :8787
+npm run dev       # terminal 2 — SPA on :5173, proxies /api to 8787
 ```
 
-Then open http://localhost:5173.
+Open **http://localhost:5173**.
 
-To exercise the deployed shape instead — one process, the Worker serving both the API and the built SPA:
+> Use `localhost`, not `127.0.0.1`. Vite binds IPv6 only (`[::1]:5173`), so `127.0.0.1:5173` refuses the connection while `localhost:5173` works.
+
+To exercise the deployed shape instead — one process, the Worker serving both the API and the built SPA, no hot reload:
 
 ```bash
 npm run build
-npx wrangler dev --local --port 8787     # http://127.0.0.1:8787
+npm run dev:api   # http://localhost:8787
 ```
+
+### Without an API key
+
+The dashboard, forecasts, breakdown scatter and every explainability panel work with no key at all — they are hand-written plans that never touch a model. Only the chat needs one, and it says so plainly rather than failing. See below to add it.
+
+### Scripts
+
+| Script | Does |
+|---|---|
+| `npm run setup` | Local D1 schema + 400 rows. Run once |
+| `npm run dev:api` | Worker on :8787 |
+| `npm run dev` | SPA on :5173 |
+| `npm test` | 64 tests. Seeds `db/local.sqlite` itself if missing |
+| `npm run build` | Semantic layer, typecheck, SPA bundle |
+| `npm run deploy` | Build then `wrangler deploy` |
 
 ### Environment variables
 

@@ -4,18 +4,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build:layer": "tsx semantic/build-layer.ts",
+    "setup": "npm run db:schema:local && npm run db:preview",
     "dev": "npm run build:layer && vite",
+    "dev:api": "wrangler dev --local --port 8787",
     "build": "npm run build:layer && tsc --noEmit && vite build",
+    "deploy": "npm run build && wrangler deploy",
     "test": "npm run build:layer && vitest run",
     "test:watch": "vitest",
+    "build:layer": "tsx semantic/build-layer.ts",
     "db:local": "tsx db/seed.ts",
-    "db:remote": "npm run db:sql && wrangler d1 execute spaceship-intel-db --remote --file=db/seed.sql",
-    "deploy": "npm run build && wrangler deploy",
     "db:sql": "tsx db/seed.ts --emit-sql > db/seed.sql",
     "db:preview": "npm run db:sql && wrangler d1 execute spaceship-intel-db --local --file=db/seed.sql",
-    "db:schema:remote": "wrangler d1 execute spaceship-intel-db --remote --file=db/schema.sql",
-    "db:schema:local": "wrangler d1 execute spaceship-intel-db --local --file=db/schema.sql"
+    "db:remote": "npm run db:sql && wrangler d1 execute spaceship-intel-db --remote --file=db/seed.sql",
+    "db:schema:local": "wrangler d1 execute spaceship-intel-db --local --file=db/schema.sql",
+    "db:schema:remote": "wrangler d1 execute spaceship-intel-db --remote --file=db/schema.sql"
   },
   "dependencies": {
     "react": "^18.3.1",

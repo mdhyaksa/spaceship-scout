@@ -17,5 +17,9 @@ export default defineConfig({
     proxy: { '/api': 'http://127.0.0.1:8787' },
   },
   build: { outDir: 'dist', sourcemap: true },
-  test: { environment: 'node', include: ['tests/**/*.test.ts'] },
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    globalSetup: ['tests/globalSetup.ts'],
+  },
 } as never);
