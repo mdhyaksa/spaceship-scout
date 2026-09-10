@@ -45,11 +45,13 @@ So: **develop on :5173, and use :8787 deliberately** when you want the one-proce
 
 ### Signing in
 
-The whole app is behind HTTP Basic auth — pages, deep links, the API and the static assets alike.
+A login screen guards the app. Signing in sets an HttpOnly session cookie signed with an HMAC keyed on the password, valid for 12 hours; **Sign out** in the topbar clears it.
 
-Credentials are **not in this repository**. They are shared with the submission, out of band; set them locally in `.dev.vars` and on the deployment as Worker secrets. The Worker **fails closed**: with them unset it returns 503 rather than serving the app, because the opposite default turns one forgotten `wrangler secret put` into a public dashboard.
+Credentials are **not in this repository**. They are shared with the submission, out of band; set `AUTH_USER` and `AUTH_PASSWORD` locally in `.dev.vars` and on the deployment as Worker secrets. The gate **fails closed**: with them unset nothing authenticates, because the opposite default turns one forgotten `wrangler secret put` into a public dashboard.
 
-On `:5173` you will not see a browser prompt. Vite serves the page and proxies `/api` to the Worker, so the browser never receives the 401 challenge — Vite reads the same two values from `.dev.vars` and attaches them to proxied calls instead. On `:8787` the Worker serves everything and the browser prompts normally.
+**What is gated is the API**, which is where the data is. The SPA shell is served to anyone — it is a static bundle carrying no metric definitions, thresholds or glossary, because those stay in the Worker. That is deliberate: it is what lets the login be a page in the app, identical on `:5173`, on `:8787` and in production, rather than the browser's own credential dialog, which cannot be styled, cannot say what it is guarding, and offers no way to sign out.
+
+Rotating the password invalidates every existing session at once, since it is the signing key. There is no server-side session store, so sessions cannot be revoked individually — acceptable for one shared credential, and among the things real per-user auth would change.
 
 **This is a gate, not an identity system.** One shared credential means the app knows someone is allowed in, never who they are — see Limitations.
 

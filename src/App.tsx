@@ -11,6 +11,7 @@ import { TopBar } from './components/TopBar.tsx';
 import { ChatSidebar } from './components/ChatSidebar.tsx';
 import { Overview } from './views/Overview.tsx';
 import { Coverage } from './views/Coverage.tsx';
+import { Login } from './views/Login.tsx';
 
 // Recharts is only needed for the forecast band, and it is most of the bundle.
 // Everything else draws in hand-rolled SVG, so it should not be paid for on
@@ -43,6 +44,9 @@ export function App() {
   const [view, setView] = useState<View>(currentView);
   const [catalog, setCatalog] = useState<LayerCatalog | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // null while the session check is in flight, so the login form does not
+  // flash before we know whether there is already a session.
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>(() => load<Conversation[]>(CHAT_KEY, []));
@@ -70,7 +74,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    api.layer().then(setCatalog).catch((e) => setError((e as Error).message));
+    api.session()
+      .then((s) => setSignedIn(s.authenticated))
+      .catch(() => setSignedIn(false));
     const onHash = () => setView(currentView());
     const onResize = () => setWide(window.innerWidth >= SPLIT_MIN_WIDTH);
     window.addEventListener('hashchange', onHash);
@@ -81,7 +87,20 @@ export function App() {
     };
   }, []);
 
+  // The catalog is behind the gate, so it is fetched once signed in.
+  useEffect(() => {
+    if (!signedIn) return;
+    api.layer().then(setCatalog).catch((e) => setError((e as Error).message));
+  }, [signedIn]);
+
   useEffect(() => save(CHAT_KEY, conversations), [conversations]);
+
+  const signOut = useCallback(async () => {
+    await api.logout();
+    setSignedIn(false);
+    setCatalog(null);
+    setChatOpen(false);
+  }, []);
 
   const go = (next: View) => {
     window.location.hash = `#/${next}`;
@@ -162,10 +181,13 @@ export function App() {
     </div>
   );
 
+  if (signedIn === null) return null;
+  if (!signedIn) return <Login onSignedIn={() => setSignedIn(true)} />;
+
   return (
     <div ref={shellRef} style={{ minHeight: '100%', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <TopBar ref={topBarRef} view={view} onChange={go} catalog={catalog}
-              chatOpen={chatOpen} onToggleChat={() => setChatOpen(!chatOpen)} />
+              chatOpen={chatOpen} onToggleChat={() => setChatOpen(!chatOpen)} onSignOut={signOut} />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>
         <main style={{ flex: 1, minWidth: 0 }}>

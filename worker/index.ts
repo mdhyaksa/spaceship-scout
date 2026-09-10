@@ -19,6 +19,9 @@ import { buildCatalog } from './catalog.ts';
 import { breakdownIR, findTile, TILES } from './tiles.ts';
 import { openRouterPlanner } from './planner.ts';
 import { writeLog } from './log.ts';
+import {
+  clearedCookie, createSession, isValidSession, readCookie, sessionCookie, timingSafeEqual,
+} from './auth.ts';
 
 export interface Env {
   DB: D1Database;
@@ -34,63 +37,63 @@ export interface Env {
 }
 
 /**
- * HTTP Basic auth across everything the Worker serves — the API and the SPA
- * alike, since the asset router sits behind this handler.
+ * Session gate.
  *
- * This is a gate, not an identity system. One shared credential means the app
- * knows someone is allowed in, never who they are, so it does not enable
- * per-user history or the coverage ranking that needs distinct users (README,
- * Limitations). Real auth replaces this rather than building on it.
+ * The API is what holds the data, so that is what is gated. The SPA shell is
+ * a static bundle with no metric definitions, thresholds or glossary in it —
+ * those live server-side — so serving it to an unauthenticated visitor gives
+ * away nothing, and it is what lets the login form be a page in the app
+ * rather than a browser dialog. Every /api/* route below the login endpoints
+ * requires a valid session.
  *
- * Credentials come from secrets, so they are not in the repository and can be
- * rotated without a commit. **Fails closed**: if they are unset the app is
- * unreachable rather than open, because the opposite default turns one
- * forgotten `wrangler secret put` into a public dashboard.
+ * Fails closed: with AUTH_USER or AUTH_PASSWORD unset nothing authenticates,
+ * because the opposite default turns one forgotten `wrangler secret put` into
+ * a public dashboard.
  */
-function requireAuth(request: Request, env: Env): Response | null {
+function isSecure(request: Request): boolean {
+  return new URL(request.url).protocol === 'https:';
+}
+
+async function handleLogin(request: Request, env: Env): Promise<Response> {
   if (!env.AUTH_USER || !env.AUTH_PASSWORD) {
-    return new Response(
-      'Access control is not configured. Set AUTH_USER and AUTH_PASSWORD as Worker secrets.',
-      { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } },
-    );
+    return json({ error: 'Access control is not configured on the server.' }, 503);
+  }
+  const body = (await request.json().catch(() => ({}))) as { user?: string; password?: string };
+  const ok =
+    timingSafeEqual(body.user ?? '', env.AUTH_USER) &&
+    timingSafeEqual(body.password ?? '', env.AUTH_PASSWORD);
+
+  if (!ok) {
+    // One message for both wrong user and wrong password: naming which was
+    // wrong tells an attacker which half to keep.
+    return json({ error: 'That username and password did not match.' }, 401);
   }
 
-  const header = request.headers.get('Authorization') ?? '';
-  if (header.startsWith('Basic ')) {
-    let decoded = '';
-    try {
-      decoded = atob(header.slice(6));
-    } catch {
-      decoded = '';
-    }
-    const separator = decoded.indexOf(':');
-    if (separator >= 0) {
-      const user = decoded.slice(0, separator);
-      const password = decoded.slice(separator + 1);
-      if (equals(user, env.AUTH_USER) && equals(password, env.AUTH_PASSWORD)) return null;
-    }
-  }
-
-  return new Response('Authentication required.', {
-    status: 401,
+  const token = await createSession(env.AUTH_USER, env.AUTH_PASSWORD);
+  return new Response(JSON.stringify({ authenticated: true }), {
+    status: 200,
     headers: {
-      'WWW-Authenticate': 'Basic realm="Space Scout", charset="UTF-8"',
-      'content-type': 'text/plain; charset=utf-8',
-      // A 401 must never be cached, or a browser can serve it back after the
-      // credentials are accepted.
+      'content-type': 'application/json; charset=utf-8',
+      'set-cookie': sessionCookie(token, isSecure(request)),
       'cache-control': 'no-store',
     },
   });
 }
 
-/** Compares without returning early on the first differing character. The
- *  length check still leaks length, which for a shared demo credential is not
- *  the weak link. */
-function equals(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let difference = 0;
-  for (let i = 0; i < a.length; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return difference === 0;
+function handleLogout(request: Request): Response {
+  return new Response(JSON.stringify({ authenticated: false }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'set-cookie': clearedCookie(isSecure(request)),
+      'cache-control': 'no-store',
+    },
+  });
+}
+
+async function authenticated(request: Request, env: Env): Promise<boolean> {
+  if (!env.AUTH_PASSWORD) return false;
+  return isValidSession(readCookie(request), env.AUTH_PASSWORD);
 }
 
 const json = (body: unknown, status = 200) =>
@@ -101,15 +104,24 @@ const json = (body: unknown, status = 200) =>
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Before routing, so it covers the API and the static assets equally.
-    const denied = requireAuth(request, env);
-    if (denied) return denied;
-
     const url = new URL(request.url);
     // Anything that is not an API call is the SPA's problem. Handing it back
     // to the asset router applies not_found_handling, so a deep link returns
     // index.html rather than a 404.
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    // Login and session status are the only routes reachable signed out.
+    if (url.pathname === '/api/login' && request.method === 'POST') {
+      return handleLogin(request, env);
+    }
+    if (url.pathname === '/api/logout') return handleLogout(request);
+    if (url.pathname === '/api/session') {
+      return json({ authenticated: await authenticated(request, env),
+                    configured: Boolean(env.AUTH_USER && env.AUTH_PASSWORD) });
+    }
+    if (!(await authenticated(request, env))) {
+      return json({ error: 'Not signed in.' }, 401);
+    }
+
     const db = d1Database(env.DB);
     try {
       return await route(url.pathname, request, env, db);

@@ -14,6 +14,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 }
 
 export const api = {
+  session: async (): Promise<{ authenticated: boolean; configured: boolean }> => {
+    const res = await fetch('/api/session');
+    if (!res.ok) return { authenticated: false, configured: true };
+    return res.json() as Promise<{ authenticated: boolean; configured: boolean }>;
+  },
+  logout: async (): Promise<void> => { await fetch('/api/logout'); },
   layer: async (): Promise<LayerCatalog> => {
     const res = await fetch('/api/layer');
     if (!res.ok) throw new Error('Could not load the semantic layer catalog.');

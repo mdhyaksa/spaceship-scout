@@ -14,7 +14,8 @@ export const TopBar = forwardRef<HTMLElement, {
   catalog: LayerCatalog | null;
   chatOpen: boolean;
   onToggleChat: () => void;
-}>(function TopBar({ view, onChange, catalog, chatOpen, onToggleChat }, ref) {
+  onSignOut: () => void;
+}>(function TopBar({ view, onChange, catalog, chatOpen, onToggleChat, onSignOut }, ref) {
   return (
     <header ref={ref} style={{
       position: 'sticky', top: 14, zIndex: 50,
@@ -59,6 +60,11 @@ export const TopBar = forwardRef<HTMLElement, {
                   fontSize: 'var(--text-sm)', fontWeight: 500, whiteSpace: 'nowrap',
                 }}>
           <ChatIcon /> Ask
+        </button>
+        <button onClick={onSignOut} className="focusable"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px',
+                         color: 'var(--text-rail-dim)', fontSize: 'var(--text-sm)', whiteSpace: 'nowrap' }}>
+          Sign out
         </button>
       </div>
     </header>

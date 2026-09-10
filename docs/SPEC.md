@@ -316,9 +316,10 @@ The README follows the brief's structure heading for heading:
 ## 12. Deployment and security
 
 - Deployed to Cloudflare Pages at a publicly accessible URL, fully usable with no local setup
-- **HTTP Basic auth over the whole deployment** — pages, deep links, API and static assets. Test credentials are shared with the submission out of band, never committed
-- Gating the SPA needs `run_worker_first` on the assets binding. Without it the asset router answers matching paths before the Worker runs, so `/` would serve `index.html` to anyone while only `/api/*` was protected
-- Credentials are Worker secrets, and the gate **fails closed**: unset means 503, not open
+- **A login screen and a signed session cookie.** Every `/api/*` route except login and session status requires it; the SPA shell is served openly, since it carries no business logic and that is what lets the login be a page in the app rather than a browser dialog
+- Test credentials are shared with the submission out of band, never committed
+- Credentials are Worker secrets, and the gate **fails closed**: unset means nothing authenticates, not open access
+- The cookie is HttpOnly, SameSite=Lax, Secure over HTTPS, and signed with an HMAC keyed on the password — so rotating the password invalidates every session
 - **No secrets in the repository.** `OPENROUTER_API_KEY` is a Worker secret (`wrangler secret put`), never a `var`, and never bundled into the SPA — a key on a public deployment is scraped and drained within hours. `.dev.vars.example` lists the names with empty values and `.dev.vars` is gitignored
 - The D1 binding is declared in `wrangler.toml`; there is no connection string to store, rotate or leak
 - The application has no write path over the fact table (§2)
