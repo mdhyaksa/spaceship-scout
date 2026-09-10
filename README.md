@@ -26,14 +26,22 @@ npm run dev       # terminal 2 — SPA on :5173, proxies /api to 8787
 
 Open **http://localhost:5173**.
 
-> Use `localhost`, not `127.0.0.1`. Vite binds IPv6 only (`[::1]:5173`), so `127.0.0.1:5173` refuses the connection while `localhost:5173` works.
+### Both ports answer, and they serve different things
 
-To exercise the deployed shape instead — one process, the Worker serving both the API and the built SPA, no hot reload:
+`wrangler dev` prints `Ready on http://localhost:8787`, and that URL does load the app — which makes it easy to open the wrong one and wonder why an edit did nothing.
 
-```bash
-npm run build
-npm run dev:api   # http://localhost:8787
-```
+| | `:5173` — `npm run dev` | `:8787` — `npm run dev:api` |
+|---|---|---|
+| Serves | Your source, live | The built bundle in `dist/` |
+| Hot reload | Yes | **No** |
+| `/api/*` | Proxied to :8787 | Handled directly |
+| Use it for | Developing | Checking the deployed shape |
+
+`wrangler.toml` carries a `[build]` command, so `wrangler dev` compiles `dist/` before it starts — which is why :8787 works on a fresh clone with no build step. The catch is that it keeps serving **that snapshot**. Edit anything under `src/` and :8787 will still show the previous build, silently, until the next `npm run build`.
+
+So: **develop on :5173, and use :8787 deliberately** when you want the one-process production shape — the Worker serving both the API and the static assets, exactly as the deployment does.
+
+> Use `localhost`, not `127.0.0.1`, for the Vite port. Vite binds IPv6 only (`[::1]:5173`), so `127.0.0.1:5173` refuses the connection while `localhost:5173` works. The Worker port answers on both.
 
 ### Without an API key
 
