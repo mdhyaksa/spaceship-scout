@@ -5,12 +5,15 @@ import { ExplainPanel } from './ExplainPanel.tsx';
 import { ChevronIcon, WarnIcon } from './Icons.tsx';
 import { InfoTooltip } from './InfoTooltip.tsx';
 
+// Starter questions the layer can answer. Deliberately no refusal case: the
+// unanswerable path is worth demonstrating, but not as the first thing a new
+// user clicks. It stays reachable by typing, is a few-shot example in the
+// planner prompt, and is covered by the golden set.
 const SUGGESTIONS = [
   'Which carrier has the highest delay rate?',
   'Show delayed orders by week for the last 3 months',
   'How many orders were delivered late last month?',
   'Delay rate by region',
-  'How many orders are in transit right now?',
 ];
 
 /**
