@@ -127,6 +127,14 @@ export function App() {
   }, [activeId, conversations, context, startConversation]);
 
 
+  // Deleting the active conversation has to leave something selected, or the
+  // thread shows an empty state while the list still has entries in it.
+  const deleteConversation = useCallback((id: string) => {
+    const remaining = conversations.filter((c) => c.id !== id);
+    setConversations(remaining);
+    if (activeId === id) setActiveId(remaining[0]?.id ?? null);
+  }, [conversations, activeId]);
+
   const sidebar = chatOpen && (
     <div style={
       wide
@@ -147,6 +155,7 @@ export function App() {
         onAsk={ask}
         onSelect={setActiveId}
         onNew={startConversation}
+        onDelete={deleteConversation}
         onClearContext={() => setContext(null)}
         onClose={() => setChatOpen(false)}
       />

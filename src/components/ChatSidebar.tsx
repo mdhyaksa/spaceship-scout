@@ -23,7 +23,7 @@ const SUGGESTIONS = [
  */
 export function ChatSidebar({
   conversations, activeId, context, busy,
-  onAsk, onSelect, onNew, onClearContext, onClose,
+  onAsk, onSelect, onNew, onDelete, onClearContext, onClose,
 }: {
   conversations: Conversation[];
   activeId: string | null;
@@ -32,6 +32,7 @@ export function ChatSidebar({
   onAsk: (question: string) => void;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onDelete: (id: string) => void;
   onClearContext: () => void;
   onClose: () => void;
 }) {
@@ -91,13 +92,29 @@ export function ChatSidebar({
         {listOpen && (
           <div style={{ display: 'grid', gap: 1, marginTop: 5, maxHeight: 190, overflowY: 'auto' }}>
             {conversations.map((c) => (
-              <button key={c.id} onClick={() => { onSelect(c.id); setListOpen(false); }} className="focusable"
-                      style={{ textAlign: 'left', padding: '6px 9px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                               background: c.id === activeId ? 'var(--surface-inset)' : 'transparent',
-                               color: c.id === activeId ? 'var(--text-primary)' : 'var(--text-secondary)',
-                               fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {titleFor(c)}
-              </button>
+              // Two controls in one row, so the row cannot be a button — a
+              // button inside a button is invalid and the delete target would
+              // not be independently reachable by keyboard.
+              <div key={c.id}
+                   style={{ display: 'flex', alignItems: 'center', borderRadius: 7,
+                            background: c.id === activeId ? 'var(--surface-inset)' : 'transparent' }}>
+                <button onClick={() => { onSelect(c.id); setListOpen(false); }} className="focusable"
+                        style={{ flex: 1, minWidth: 0, textAlign: 'left', padding: '6px 9px',
+                                 borderRadius: 7, border: 'none', cursor: 'pointer', background: 'none',
+                                 color: c.id === activeId ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                 fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis',
+                                 whiteSpace: 'nowrap' }}>
+                  {titleFor(c)}
+                </button>
+                <button onClick={() => onDelete(c.id)} className="focusable"
+                        aria-label={`Delete conversation: ${titleFor(c)}`}
+                        title="Delete conversation"
+                        style={{ flex: 'none', background: 'none', border: 'none', cursor: 'pointer',
+                                 padding: '5px 9px', borderRadius: 7, color: 'var(--text-muted)',
+                                 fontSize: 'var(--text-sm)', lineHeight: 1 }}>
+                  ✕
+                </button>
+              </div>
             ))}
           </div>
         )}
