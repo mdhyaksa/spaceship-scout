@@ -1,3 +1,12 @@
 # Copy to .dev.vars for local `wrangler dev`. Never commit .dev.vars.
+
+# Paste your OpenRouter key. Without it the dashboard, forecasts and
+# explainability all still work; only the chat needs it.
 OPENROUTER_API_KEY=
-OPENROUTER_MODEL=anthropic/claude-sonnet-4.5
+OPENROUTER_MODEL=google/gemini-3.8-flash
+
+# The Basic-auth gate. The Worker fails closed, so it is unreachable until
+# these are set. Vite reads the same two values and attaches them to proxied
+# API calls, so the dev server works without a browser prompt.
+AUTH_USER=REDACTED
+AUTH_PASSWORD=REDACTED

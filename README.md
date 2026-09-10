@@ -43,6 +43,21 @@ So: **develop on :5173, and use :8787 deliberately** when you want the one-proce
 
 > Use `localhost`, not `127.0.0.1`, for the Vite port. Vite binds IPv6 only (`[::1]:5173`), so `127.0.0.1:5173` refuses the connection while `localhost:5173` works. The Worker port answers on both.
 
+### Signing in
+
+The whole app is behind HTTP Basic auth — pages, deep links, the API and the static assets alike.
+
+| | |
+|---|---|
+| User | `REDACTED` |
+| Password | `REDACTED` |
+
+Locally these come from `.dev.vars`. The Worker **fails closed**: with them unset it returns 503 rather than serving the app, because the opposite default turns one forgotten `wrangler secret put` into a public dashboard.
+
+On `:5173` you will not see a browser prompt. Vite serves the page and proxies `/api` to the Worker, so the browser never receives the 401 challenge — Vite reads the same two values from `.dev.vars` and attaches them to proxied calls instead. On `:8787` the Worker serves everything and the browser prompts normally.
+
+**This is a gate, not an identity system.** One shared credential means the app knows someone is allowed in, never who they are — see Limitations.
+
 ### Without an API key
 
 The dashboard, forecasts, breakdown scatter and every explainability panel work with no key at all — they are hand-written plans that never touch a model. Only the chat needs one, and it says so plainly rather than failing. See below to add it.
@@ -65,6 +80,8 @@ The dashboard, forecasts, breakdown scatter and every explainability panel work 
 |---|---|---|
 | `OPENROUTER_API_KEY` | Worker secret | Planner access. **Never** a `var`, never bundled into the SPA |
 | `OPENROUTER_MODEL` | `wrangler.toml` var | Defaults to `google/gemini-3.8-flash` |
+| `AUTH_USER` | Worker secret | Basic-auth user. `REDACTED` |
+| `AUTH_PASSWORD` | Worker secret | Basic-auth password. `REDACTED` |
 
 Copy `.dev.vars.example` to `.dev.vars` for local runs. `.dev.vars` is gitignored, and no secret is committed.
 
@@ -86,8 +103,10 @@ npx wrangler d1 create spaceship-intel-db
 npm run db:schema:remote
 npm run db:remote
 
-# 4. Store the planner key as a secret — never a var, never in the repo
+# 4. Store the secrets — never vars, never in the repo
 npx wrangler secret put OPENROUTER_API_KEY
+npx wrangler secret put AUTH_USER        # REDACTED
+npx wrangler secret put AUTH_PASSWORD    # REDACTED
 
 # 5. Build and deploy
 npm run deploy
@@ -313,12 +332,14 @@ The trade is real: **it hides data by default**, which is a thing to be uncomfor
 - **P95 is discrete, not interpolated** — it reports a transit time some order actually had, and is identical on SQLite and Postgres.
 - **Dashboard tiles are not logged.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface.
 - **Sample sizes are thin almost everywhere.** 5 of 9 carriers, 25 of 30 clients and 37 of 47 lanes fall below their floor. The UI states the coverage rather than quietly muting them.
-- **No authentication, so no per-user anything.** Everyone who opens the URL gets the same dashboard, and there is no identity to hang a conversation on. Three consequences follow:
+- **A shared password, not user accounts.** HTTP Basic auth gates the deployment, so the dashboard is not public — but one credential is shared by everyone, so the app never learns *who* is asking. There is still no identity to hang a conversation on, and three consequences follow:
   - **Chat history is per browser, not per user.** Conversations and pinned tiles live in `localStorage` (`spaceship.conversations.v1`, `spaceship.pinned.v1`). They do not follow you to another device or another browser, are not visible to anyone else, and vanish when site data is cleared.
   - **The query log records no `user_id`.** `Natural_language_query_spec.md` §8.1 designs the column; the shipped table omits it, because there is nothing truthful to write in it.
   - **That weakens the coverage loop more than it first appears.** §8.5 ranks gaps by `distinct_users × log(question_count)`, so that a question asked once each by twelve people outranks one asked twelve times by a single power user. Without identity the coverage page can only rank by raw frequency, which is exactly the ranking that flatters one persistent user. Adding auth is therefore a prerequisite for Future Improvement 1, not an orthogonal feature.
 
-  Adding it is not deep work — the compiler would need a non-bypassable tenant filter either way (`docs/tech-stack.md` §11.4) — but nothing here pretends to be multi-tenant today.
+  Real authentication replaces the gate rather than building on it, and the compiler would need a non-bypassable tenant filter alongside it (`docs/tech-stack.md` §11.4). Nothing here pretends to be multi-tenant today.
+
+  Basic auth also has the properties Basic auth has: credentials go on every request, so it relies entirely on TLS, and there is no session, no logout beyond closing the browser, and no rate limiting on attempts.
 
 ## Future improvements
 
