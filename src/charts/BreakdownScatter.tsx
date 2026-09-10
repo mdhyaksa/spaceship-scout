@@ -73,18 +73,27 @@ export function BreakdownScatter({
   // that matters — it lets two labels the model thinks are clear overlap in
   // fact — so the estimate is deliberately generous. Costing a label an extra
   // offset step is cheaper than shipping a collision.
-  const CHAR_W = px(7.8);
-  const PAD_X = px(3);
-  const LINE_H = px(14);
+  // Lane names run to "San Francisco, CA -> Sacramento, CA" — some 320px on a
+  // 520px plot, so two of them cannot coexist and most points end up unnamed.
+  // Truncating for display buys back the room; the circle's tooltip carries
+  // the full name, so nothing is lost.
+  const MAX_LABEL = 22;
+  const shortLabel = (key: string) => (key.length > MAX_LABEL ? `${key.slice(0, MAX_LABEL - 1)}…` : key);
+
+  const CHAR_W = px(7.4);
+  const PAD_X = px(2);
+  const LINE_H = px(13);
   const R = px(6);
 
-  interface Placement { x: number; y: number; anchor: 'start' | 'end'; leader: boolean }
+  type Anchor = 'start' | 'middle' | 'end';
+  interface Placement { x: number; y: number; anchor: Anchor; leader: boolean }
   interface Box { left: number; right: number; top: number; bottom: number }
 
-  const boxFor = (cx: number, cy: number, dx: number, dy: number, anchor: 'start' | 'end', key: string): Box => {
+  const boxFor = (cx: number, cy: number, dx: number, dy: number, anchor: Anchor, key: string): Box => {
     const w = key.length * CHAR_W + PAD_X * 2;
-    const left = (anchor === 'start' ? cx + dx : cx + dx - w) - PAD_X;
-    return { left, right: left + w, top: cy + dy - LINE_H * 0.8, bottom: cy + dy + LINE_H * 0.35 };
+    const originX = cx + dx;
+    const left = anchor === 'start' ? originX - PAD_X : anchor === 'end' ? originX - w + PAD_X : originX - w / 2;
+    return { left, right: left + w, top: cy + dy - LINE_H * 0.75, bottom: cy + dy + LINE_H * 0.25 };
   };
   const overlaps = (a: Box, b: Box) =>
     !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
@@ -92,8 +101,8 @@ export function BreakdownScatter({
   // Seed the occupied set with the captions, which are text too — in the
   // reference screenshot the target caption sat on top of the points near it.
   const occupied: Box[] = [
-    { left: width - PAD.right - px(90), right: width - PAD.right, top: y(target) - px(16), bottom: y(target) - px(2) },
-    { left: width - PAD.right - px(130), right: width - PAD.right, top: y(floor) - px(16), bottom: y(floor) },
+    { left: width - PAD.right - px(74), right: width - PAD.right, top: y(target) - px(15), bottom: y(target) - px(3) },
+    { left: width - PAD.right - px(110), right: width - PAD.right, top: y(floor) - px(14), bottom: y(floor) },
   ];
   // A label sitting on another point is as unreadable as one sitting on
   // another label, so the marks occupy space too.
@@ -101,17 +110,25 @@ export function BreakdownScatter({
     occupied.push({ left: x(p.share) - R, right: x(p.share) + R, top: y(p.rate) - R, bottom: y(p.rate) + R });
   }
 
-  const CANDIDATES: [number, number, 'start' | 'end'][] = [
-    [R + px(4), px(4), 'start'],           // beside, right — preferred
-    [-(R + px(4)), px(4), 'end'],          // beside, left
-    [R + px(4), -px(12), 'start'],
-    [R + px(4), px(19), 'start'],
-    [-(R + px(4)), -px(12), 'end'],
-    [-(R + px(4)), px(19), 'end'],
-    [R + px(4), -px(26), 'start'],         // further out, the leader carries it
-    [R + px(4), px(33), 'start'],
-    [-(R + px(4)), -px(26), 'end'],
-    [-(R + px(4)), px(33), 'end'],
+  // Beside the mark first, then centred above or below it, then further out
+  // where a leader has to carry the association. Centred slots matter: when a
+  // point has neighbours to its left and right, the space directly above it is
+  // usually free and every side candidate is blocked.
+  const CANDIDATES: [number, number, Anchor][] = [
+    [R + px(4), px(4), 'start'],
+    [-(R + px(4)), px(4), 'end'],
+    [0, -(R + px(6)), 'middle'],
+    [0, R + px(13), 'middle'],
+    [R + px(4), -px(11), 'start'],
+    [R + px(4), px(17), 'start'],
+    [-(R + px(4)), -px(11), 'end'],
+    [-(R + px(4)), px(17), 'end'],
+    [0, -(R + px(19)), 'middle'],
+    [0, R + px(26), 'middle'],
+    [R + px(4), -px(25), 'start'],
+    [-(R + px(4)), -px(25), 'end'],
+    [R + px(4), px(31), 'start'],
+    [-(R + px(4)), px(31), 'end'],
   ];
 
   // Leaders make denser labelling readable, so the cap is higher than it was —
@@ -130,12 +147,12 @@ export function BreakdownScatter({
     const cx = x(p.share);
     const cy = y(p.rate);
     for (const [dx, dy, anchor] of CANDIDATES) {
-      const box = boxFor(cx, cy, dx, dy, anchor, p.key);
+      const box = boxFor(cx, cy, dx, dy, anchor, shortLabel(p.key));
       if (box.left < PAD.left || box.right > width - PAD.right) continue;
       if (box.top < PAD.top || box.bottom > y(floor)) continue;
       if (occupied.some((o) => overlaps(box, o))) continue;
       occupied.push(box);
-      placements.set(p.key, { x: cx + dx, y: cy + dy, anchor, leader: Math.abs(dy) > px(8) });
+      placements.set(p.key, { x: cx + dx, y: cy + dy, anchor, leader: anchor === 'middle' || Math.abs(dy) > px(8) });
       break;
     }
   }
@@ -168,7 +185,9 @@ export function BreakdownScatter({
 
       <line x1={PAD.left} x2={width - PAD.right} y1={y(target)} y2={y(target)}
             stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" />
-      <text x={width - PAD.right - px(2)} y={y(target) - px(4)} textAnchor="end" fontSize={px(10)} fill="var(--text-primary)" className="tnum">
+      <text x={width - PAD.right - px(2)} y={y(target) - px(4)} textAnchor="end" fontSize={px(10)}
+            stroke="var(--surface-card)" strokeWidth={px(2.5)} strokeLinejoin="round" paintOrder="stroke"
+            fill="var(--text-primary)" className="tnum">
         {formatValue(target, 'percent')} target
       </text>
       <line x1={thresholdX} x2={thresholdX} y1={PAD.top} y2={y(floor)} stroke="var(--role-reference)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.3} />
@@ -208,13 +227,19 @@ export function BreakdownScatter({
                 <>
                   {place.leader && (
                     <line x1={x(p.share)} y1={y(p.rate)}
-                          x2={place.x + (place.anchor === 'start' ? -px(2) : px(2))}
-                          y2={place.y - px(3)}
+                          x2={place.x + (place.anchor === 'start' ? -px(2) : place.anchor === 'end' ? px(2) : 0)}
+                          y2={place.y - (place.y < y(p.rate) ? -px(2) : px(3))}
                           stroke="var(--graphite-300)" strokeWidth={0.5} />
                   )}
+                  {/* A halo in the card colour, so the target line, the
+                      gridlines and the quadrant edge do not run through the
+                      text. Cheaper and more legible than routing labels
+                      around every rule on the chart. */}
                   <text x={place.x} y={place.y} fontSize={px(11)} textAnchor={place.anchor}
+                        stroke="var(--surface-card)" strokeWidth={px(2.5)} strokeLinejoin="round"
+                        paintOrder="stroke" aria-hidden="true"
                         fill={thin ? 'var(--text-muted)' : 'var(--text-primary)'} data-point-label>
-                    {p.key}
+                    {shortLabel(p.key)}
                   </text>
                 </>
               );

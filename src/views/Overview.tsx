@@ -28,6 +28,7 @@ export function Overview({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pinAnswers, setPinAnswers] = useState<Record<string, Answer>>({});
+  const [showAllGroups, setShowAllGroups] = useState(false);
 
   // Switching the breakdown dimension quickly fires overlapping requests, and
   // without sequencing an earlier response can land after a later one — the
@@ -92,6 +93,24 @@ export function Overview({
   const overallOnTime = Number(tiles['card_on_time_rate']?.data?.rows[0]?.['on_time_rate'] ?? 0);
   const dimensionMeta = catalog?.dimensions.find((d) => d.name === renderedDimension);
 
+  // Above this many groups, a scatter of every group stops being a chart.
+  // Carrier, region, warehouse and category all sit under it and are unchanged.
+  const DENSE_ABOVE = 15;
+  const floor = dimensionMeta?.min_group_size ?? null;
+  const belowFloor = floor === null ? [] : scatterPoints.filter((p) => p.n < floor);
+  const clearing = scatterPoints.length - belowFloor.length;
+
+  // Hide the groups whose rates are sampling noise, rather than drawing 47
+  // marks in a 3-point-wide band where 37 overlap each other. The sufficiency
+  // guard already concludes those rates are not reportable; until now the
+  // chart plotted them anyway and contradicted its own caption.
+  //
+  // Never hide everything: if no group clears the floor there is nothing left
+  // to draw, and the honest output is all of them plus the warning.
+  const dense = scatterPoints.length > DENSE_ABOVE && belowFloor.length > 0 && clearing > 0;
+  const hiding = dense && !showAllGroups;
+  const visiblePoints = hiding ? scatterPoints.filter((p) => floor === null || p.n >= floor) : scatterPoints;
+
   return (
     <div>
       <FilterBar catalog={catalog} filters={filters} period={period}
@@ -151,11 +170,29 @@ export function Overview({
             </div>
           }>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 8 }}>
-            Darker points are slower. Hollow points fall below the minimum sample
-            {dimensionMeta?.min_group_size ? ` of ${dimensionMeta.min_group_size}` : ''}.
+            Darker points are slower.{' '}
+            {hiding
+              ? `Showing the ${clearing} ${dimensionMeta?.label.toLowerCase() ?? renderedDimension} groups with at least ${floor} completed deliveries.`
+              : `Hollow points fall below the minimum sample${floor ? ` of ${floor}` : ''}.`}
           </p>
+          {dense && (
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 8,
+                        display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+              <span>
+                {hiding
+                  ? `${belowFloor.length} of ${scatterPoints.length} hidden — their rates rest on fewer than ${floor} deliveries each.`
+                  : `${belowFloor.length} of ${scatterPoints.length} shown hollow are below the minimum sample and overlap heavily.`}
+              </span>
+              <button onClick={() => setShowAllGroups(!showAllGroups)} className="focusable"
+                      style={{ background: 'none', border: '0.5px solid var(--border-strong)',
+                               borderRadius: 'var(--radius-pill)', padding: '3px 11px', cursor: 'pointer',
+                               fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                {hiding ? `Show all ${scatterPoints.length}` : `Show only the ${clearing} reportable`}
+              </button>
+            </p>
+          )}
           {breakdown ? (
-            <BreakdownScatter points={scatterPoints} target={overallOnTime}
+            <BreakdownScatter points={visiblePoints} target={overallOnTime}
                               volumeThresholdPct={catalog?.parameters.volume_threshold_pct[renderedDimension]
                                 ?? catalog?.parameters.volume_threshold_pct['default'] ?? 10}
                               minGroupSize={dimensionMeta?.min_group_size ?? null}
