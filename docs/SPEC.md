@@ -285,6 +285,7 @@ The brief budgets 6–10 hours and says plainly: do not over-engineer. The compa
 **Deferred — documented in README Future Improvements, not started:**
 
 - Tier-2 model routing and the planner retry (§5.3)
+- Dedicated Carriers, Lanes and Clients routes. These were never built, and the disabled nav entries standing in for them have been removed rather than left looking broken — the Breakdown tile's dimension switcher covers all three
 - Raw-SQL escape hatch and the unverified-trust surface (§7)
 - SQL feature extraction, question clustering, gap taxonomy, promotion workflow, SLIs (§8.2–8.8)
 - The full 60–100 pair golden set

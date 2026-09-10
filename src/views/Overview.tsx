@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Answer, LayerCatalog } from '../../shared/types.ts';
 import type { Filter, QueryIR } from '../../shared/ir.ts';
 import { api } from '../lib/api.ts';
@@ -29,14 +29,25 @@ export function Overview({
   const [error, setError] = useState<string | null>(null);
   const [pinAnswers, setPinAnswers] = useState<Record<string, Answer>>({});
 
+  // Switching the breakdown dimension quickly fires overlapping requests, and
+  // without sequencing an earlier response can land after a later one — the
+  // tiles would then hold rows for a dimension other than the one the switcher
+  // shows, and the scatter would label its points from a different query than
+  // it drew them from. Only the newest request may write.
+  const latestRequest = useRef(0);
+
   const load = useCallback(async (refresh?: string) => {
+    const request = ++latestRequest.current;
     setError(null);
     try {
-      setTiles(await api.tiles({ filters, period, refresh: refresh ?? null, breakdownDimension: dimension }));
+      const next = await api.tiles({ filters, period, refresh: refresh ?? null, breakdownDimension: dimension });
+      if (request !== latestRequest.current) return;
+      setTiles(next);
     } catch (e) {
+      if (request !== latestRequest.current) return;
       setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (request === latestRequest.current) setLoading(false);
     }
   }, [filters, period, dimension]);
 
@@ -52,17 +63,34 @@ export function Overview({
 
   const breakdown = tiles['chart_breakdown'];
   const breakdownRows = breakdown?.data?.rows ?? [];
+
+  // Read the dimension from the answer, not from local state.
+  //
+  // Clicking the switcher changes `dimension` immediately, while the rows for
+  // it are still in flight — so for one render the old rows were being keyed
+  // by the new dimension name, every key came out empty, and React could not
+  // tell 30 <g key=""> elements apart. Marks accumulated instead of being
+  // replaced: 205 circles for 30 clients, with labels from whichever dimension
+  // had been selected before.
+  //
+  // The plan that produced these rows names its own dimension, so rows and
+  // keys cannot disagree.
+  const renderedDimension = breakdown?.explain?.ir.dimensions[0] ?? dimension;
   const totalVolume = breakdownRows.reduce((s, r) => s + Number(r['order_count'] ?? 0), 0);
-  const scatterPoints: ScatterPoint[] = breakdownRows.map((r) => ({
-    key: String(r[dimension] ?? ''),
-    share: totalVolume ? Number(r['order_count'] ?? 0) / totalVolume : 0,
-    rate: Number(r['on_time_rate'] ?? 0),
-    transit: Number(r['avg_transit_days'] ?? 0),
-    p90: Number(r['p90_transit_days'] ?? 0),
-    n: Number(r['completed_count'] ?? 0),
-  }));
+  const scatterPoints: ScatterPoint[] = breakdownRows
+    .map((r) => ({
+      key: String(r[renderedDimension] ?? ''),
+      share: totalVolume ? Number(r['order_count'] ?? 0) / totalVolume : 0,
+      rate: Number(r['on_time_rate'] ?? 0),
+      transit: Number(r['avg_transit_days'] ?? 0),
+      p90: Number(r['p90_transit_days'] ?? 0),
+      n: Number(r['completed_count'] ?? 0),
+    }))
+    // A group with no key cannot be labelled, identified in a tooltip, or
+    // given a stable React key. Belt to the braces above.
+    .filter((p) => p.key !== '');
   const overallOnTime = Number(tiles['card_on_time_rate']?.data?.rows[0]?.['on_time_rate'] ?? 0);
-  const dimensionMeta = catalog?.dimensions.find((d) => d.name === dimension);
+  const dimensionMeta = catalog?.dimensions.find((d) => d.name === renderedDimension);
 
   return (
     <div>
@@ -128,10 +156,10 @@ export function Overview({
           </p>
           {breakdown ? (
             <BreakdownScatter points={scatterPoints} target={overallOnTime}
-                              volumeThresholdPct={catalog?.parameters.volume_threshold_pct[dimension]
+                              volumeThresholdPct={catalog?.parameters.volume_threshold_pct[renderedDimension]
                                 ?? catalog?.parameters.volume_threshold_pct['default'] ?? 10}
                               minGroupSize={dimensionMeta?.min_group_size ?? null}
-                              dimensionLabel={dimensionMeta?.label ?? dimension} />
+                              dimensionLabel={dimensionMeta?.label ?? renderedDimension} />
           ) : <Empty message={loading ? 'Loading…' : 'No data'} />}
         </TileFrame>
       </div>

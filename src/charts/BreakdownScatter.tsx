@@ -60,40 +60,85 @@ export function BreakdownScatter({
   const thresholdX = x(volumeThresholdPct / 100);
   const inQuadrant = points.filter((p) => p.rate < target && p.share >= volumeThresholdPct / 100);
 
-  // Beyond about a dozen categories, labelling everything collides into noise
-  // and defeats the chart. Distance from the target line is not enough of a
-  // filter on its own: 20-odd lanes sit at exactly 100%, all of them "far from
-  // target", and they land on the same pixel row.
+  // Labels are offset until they fit, and connected by a leader when they end
+  // up away from their mark.
   //
-  // So labels are placed greedily in priority order - the priority quadrant
-  // first, because that is what the reader came for, then furthest from target
-  // - and any label that would overlap one already placed is dropped. The
-  // point keeps its position and its tooltip either way.
-  const labelled = new Set<string>();
-  if (points.length <= 12) {
-    points.forEach((p) => labelled.add(p.key));
-  } else {
-    const placed: { x: number; y: number; halfWidth: number }[] = [];
-    const priority = [...points].sort((a, b) => {
-      const aq = inQuadrant.includes(a) ? 0 : 1;
-      const bq = inQuadrant.includes(b) ? 0 : 1;
-      if (aq !== bq) return aq - bq;
-      return Math.abs(b.rate - target) - Math.abs(a.rate - target);
-    });
-    for (const p of priority) {
-      if (labelled.size >= 12) break;
-      const px = x(p.share);
-      const py = y(p.rate);
-      const halfWidth = (p.key.length * 6) / 2 + 12;
-      const collides = placed.some(
-        (q) => Math.abs(q.y - py) < 12 && Math.abs(q.x - px) < q.halfWidth + halfWidth,
-      );
-      if (collides) continue;
-      placed.push({ x: px, y: py, halfWidth });
-      labelled.add(p.key);
+  // The previous version skipped placement entirely below thirteen points,
+  // which is exactly the case that collides: eight product categories were
+  // labelled blind and landed on top of each other. Placement now always runs,
+  // and a collision moves a label rather than deleting it — a dropped label
+  // loses information that a short line preserves.
+  // Measured against rendered labels: digits run ~7.9px per character at this
+  // font size and uppercase runs wider still. Estimating narrow is the failure
+  // that matters — it lets two labels the model thinks are clear overlap in
+  // fact — so the estimate is deliberately generous. Costing a label an extra
+  // offset step is cheaper than shipping a collision.
+  const CHAR_W = px(7.8);
+  const PAD_X = px(3);
+  const LINE_H = px(14);
+  const R = px(6);
+
+  interface Placement { x: number; y: number; anchor: 'start' | 'end'; leader: boolean }
+  interface Box { left: number; right: number; top: number; bottom: number }
+
+  const boxFor = (cx: number, cy: number, dx: number, dy: number, anchor: 'start' | 'end', key: string): Box => {
+    const w = key.length * CHAR_W + PAD_X * 2;
+    const left = (anchor === 'start' ? cx + dx : cx + dx - w) - PAD_X;
+    return { left, right: left + w, top: cy + dy - LINE_H * 0.8, bottom: cy + dy + LINE_H * 0.35 };
+  };
+  const overlaps = (a: Box, b: Box) =>
+    !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+
+  // Seed the occupied set with the captions, which are text too — in the
+  // reference screenshot the target caption sat on top of the points near it.
+  const occupied: Box[] = [
+    { left: width - PAD.right - px(90), right: width - PAD.right, top: y(target) - px(16), bottom: y(target) - px(2) },
+    { left: width - PAD.right - px(130), right: width - PAD.right, top: y(floor) - px(16), bottom: y(floor) },
+  ];
+  // A label sitting on another point is as unreadable as one sitting on
+  // another label, so the marks occupy space too.
+  for (const p of points) {
+    occupied.push({ left: x(p.share) - R, right: x(p.share) + R, top: y(p.rate) - R, bottom: y(p.rate) + R });
+  }
+
+  const CANDIDATES: [number, number, 'start' | 'end'][] = [
+    [R + px(4), px(4), 'start'],           // beside, right — preferred
+    [-(R + px(4)), px(4), 'end'],          // beside, left
+    [R + px(4), -px(12), 'start'],
+    [R + px(4), px(19), 'start'],
+    [-(R + px(4)), -px(12), 'end'],
+    [-(R + px(4)), px(19), 'end'],
+    [R + px(4), -px(26), 'start'],         // further out, the leader carries it
+    [R + px(4), px(33), 'start'],
+    [-(R + px(4)), -px(26), 'end'],
+    [-(R + px(4)), px(33), 'end'],
+  ];
+
+  // Leaders make denser labelling readable, so the cap is higher than it was —
+  // but 47 lanes still cannot all carry a label.
+  const LABEL_CAP = 16;
+  const placements = new Map<string, Placement>();
+  const priority = [...points].sort((a, b) => {
+    const aq = inQuadrant.includes(a) ? 0 : 1;
+    const bq = inQuadrant.includes(b) ? 0 : 1;
+    if (aq !== bq) return aq - bq;
+    return Math.abs(b.rate - target) - Math.abs(a.rate - target);
+  });
+
+  for (const p of priority) {
+    if (placements.size >= LABEL_CAP) break;
+    const cx = x(p.share);
+    const cy = y(p.rate);
+    for (const [dx, dy, anchor] of CANDIDATES) {
+      const box = boxFor(cx, cy, dx, dy, anchor, p.key);
+      if (box.left < PAD.left || box.right > width - PAD.right) continue;
+      if (box.top < PAD.top || box.bottom > y(floor)) continue;
+      if (occupied.some((o) => overlaps(box, o))) continue;
+      occupied.push(box);
+      placements.set(p.key, { x: cx + dx, y: cy + dy, anchor, leader: Math.abs(dy) > px(8) });
+      break;
     }
   }
-  const shouldLabel = (p: ScatterPoint) => labelled.has(p.key);
 
   if (!points.length) return <div ref={ref}><Empty /></div>;
 
@@ -156,17 +201,22 @@ export function BreakdownScatter({
                  (thin ? `\nbelow the minimum sample of ${minGroupSize}` : '')}
               </title>
             </circle>
-            {shouldLabel(p) && (() => {
-              // Flip the label inside the plot when it would run off the right
-              // edge. The highest-volume group is the one a reader most wants
-              // named, and it is exactly the one that sits closest to the frame.
-              const flip = x(p.share) + 12 + p.key.length * 6 > width - PAD.right;
+            {(() => {
+              const place = placements.get(p.key);
+              if (!place) return null;
               return (
-                <text x={x(p.share) + (flip ? -px(9) : px(9))} y={y(p.rate) + px(3)} fontSize={px(11)}
-                      textAnchor={flip ? 'end' : 'start'}
-                      fill={thin ? 'var(--text-muted)' : 'var(--text-primary)'}>
-                  {p.key}
-                </text>
+                <>
+                  {place.leader && (
+                    <line x1={x(p.share)} y1={y(p.rate)}
+                          x2={place.x + (place.anchor === 'start' ? -px(2) : px(2))}
+                          y2={place.y - px(3)}
+                          stroke="var(--graphite-300)" strokeWidth={0.5} />
+                  )}
+                  <text x={place.x} y={place.y} fontSize={px(11)} textAnchor={place.anchor}
+                        fill={thin ? 'var(--text-muted)' : 'var(--text-primary)'} data-point-label>
+                    {p.key}
+                  </text>
+                </>
               );
             })()}
           </g>

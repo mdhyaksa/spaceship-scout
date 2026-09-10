@@ -27,6 +27,19 @@ export function ColumnChart({
   const y = linear([0, top], [H - PAD.bottom, PAD.top]);
   const bars = band(rows.length, [PAD.left, width - PAD.right]);
 
+  // How many labels fit, not how many rows there are.
+  //
+  // This used to be `rows.length <= 12`, which is exactly the common case — a
+  // year of months — so it always rendered all twelve however narrow the chart
+  // got, and they collided into a smear. Stride from the measured band step
+  // against the widest label instead.
+  const labels = rows.map((r) => formatPeriod(String(r['period'])));
+  const widest = Math.max(1, ...labels.map((l) => l.length)) * px(6.2);
+  const stride = Math.max(1, Math.ceil((widest + px(8)) / bars.step));
+  // The most recent period is the one being read, so it always keeps its
+  // label; the stride is anchored to the end rather than the start.
+  const showLabel = (i: number) => (rows.length - 1 - i) % stride === 0;
+
   return (
     <div ref={ref}>
       {!rows.length ? <Empty /> : (
@@ -55,9 +68,10 @@ export function ColumnChart({
                   strokeDasharray={isPartial ? '3 2' : undefined}>
               <title>{`${formatPeriod(String(r['period']))}: ${formatValue(v, format)}${isPartial ? ' (partial period)' : ''}`}</title>
             </rect>
-            {(rows.length <= 12 || i % 2 === 0) && (
-              <text x={bars.centre(i)} y={H - px(8)} textAnchor="middle" fontSize={px(11)} fill="var(--text-secondary)">
-                {formatPeriod(String(r['period']))}
+            {showLabel(i) && (
+              <text x={bars.centre(i)} y={H - px(8)} textAnchor="middle" fontSize={px(11)}
+                    fill="var(--text-secondary)" data-axis-label>
+                {labels[i]}
               </text>
             )}
           </g>

@@ -1,45 +1,42 @@
+import { forwardRef } from 'react';
 import type { LayerCatalog } from '../../shared/types.ts';
 import { VIEWS, type View } from '../lib/views.ts';
 import { ChatIcon } from './Icons.tsx';
 
 /**
- * One bar across the top, replacing a 132px vertical rail that spent most of
- * its width on background. Horizontal navigation costs no content width at all
- * and leaves the full page for the dashboard.
+ * One bar across the top, sticky, replacing a 132px vertical rail that spent
+ * most of its width on background. Horizontal navigation costs no content
+ * width at all and stays reachable after scrolling.
  */
-export function TopBar({
-  view, onChange, catalog, chatOpen, onToggleChat,
-}: {
+export const TopBar = forwardRef<HTMLElement, {
   view: View;
   onChange: (v: View) => void;
   catalog: LayerCatalog | null;
   chatOpen: boolean;
   onToggleChat: () => void;
-}) {
+}>(function TopBar({ view, onChange, catalog, chatOpen, onToggleChat }, ref) {
   return (
-    <header style={{
+    <header ref={ref} style={{
+      position: 'sticky', top: 14, zIndex: 50,
       background: 'var(--surface-rail)', borderRadius: 'var(--radius-card)',
       padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
         <span style={{ width: 17, height: 17, background: 'var(--brand)', borderRadius: 4, display: 'inline-block' }} />
-        <span style={{ fontSize: 'var(--text-md)', fontWeight: 500, color: 'var(--text-on-rail)' }}>Manifest</span>
+        <span style={{ fontSize: 'var(--text-md)', fontWeight: 500, color: 'var(--text-on-rail)' }}>Space Scout</span>
       </div>
 
       <nav style={{ display: 'flex', gap: 2 }}>
         {VIEWS.map((item) => {
-          const active = item.enabled && view === item.id;
+          const active = view === item.id;
           return (
             <button key={item.id} className="focusable"
-                    disabled={!item.enabled}
-                    title={item.hint}
                     aria-current={active ? 'page' : undefined}
-                    onClick={() => item.enabled && onChange(item.id as View)}
+                    onClick={() => onChange(item.id)}
                     style={{
-                      padding: '6px 12px', borderRadius: 7, border: 'none',
+                      padding: '6px 12px', borderRadius: 7, border: 'none', cursor: 'pointer',
                       background: active ? 'rgba(255,255,255,0.11)' : 'transparent',
-                      color: !item.enabled ? '#5E5E64' : active ? 'var(--text-on-rail)' : 'var(--text-rail-dim)',
-                      cursor: item.enabled ? 'pointer' : 'not-allowed',
+                      color: active ? 'var(--text-on-rail)' : 'var(--text-rail-dim)',
                       fontSize: 'var(--text-sm)', fontWeight: active ? 500 : 400, whiteSpace: 'nowrap',
                     }}>
               {item.label}
@@ -66,4 +63,4 @@ export function TopBar({
       </div>
     </header>
   );
-}
+});

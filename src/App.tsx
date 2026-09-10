@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { LayerCatalog } from '../shared/types.ts';
 import type { QueryIR } from '../shared/ir.ts';
 import { api } from './lib/api.ts';
@@ -52,6 +52,23 @@ export function App() {
 
   const [pins, setPins] = useState<Pinned[]>(() => load<Pinned[]>(PIN_KEY, []));
   const [wide, setWide] = useState(() => window.innerWidth >= SPLIT_MIN_WIDTH);
+
+  // The filter bar sticks directly beneath the topbar, and the sidebar starts
+  // below it. Both offsets depend on the topbar's height, which changes when
+  // the nav wraps — so it is measured rather than assumed, and published as a
+  // custom property the rest of the shell reads.
+  const topBarRef = useRef<HTMLElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const bar = topBarRef.current;
+    const shell = shellRef.current;
+    if (!bar || !shell) return;
+    const publish = () => shell.style.setProperty('--topbar-h', `${Math.round(bar.offsetHeight)}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     api.layer().then(setCatalog).catch((e) => setError((e as Error).message));
@@ -119,10 +136,14 @@ export function App() {
   const sidebar = chatOpen && (
     <div style={
       wide
-        ? { width: SIDEBAR_WIDTH, flex: 'none', position: 'sticky', top: 14, alignSelf: 'flex-start', height: 'calc(100vh - 84px)' }
+        ? {
+            width: SIDEBAR_WIDTH, flex: 'none', alignSelf: 'flex-start',
+            position: 'sticky', top: 'calc(var(--topbar-h, 56px) + 26px)',
+            height: 'calc(100vh - var(--topbar-h, 56px) - 40px)',
+          }
         // Below the split threshold, 380px is most of the screen — overlay
         // rather than crushing the charts into a column.
-        : { position: 'fixed', inset: '68px 10px 10px 10px', zIndex: 80 }
+        : { position: 'fixed', inset: 'calc(var(--topbar-h, 56px) + 24px) 10px 10px 10px', zIndex: 80 }
     }>
       <ChatSidebar
         catalog={catalog}
@@ -141,8 +162,8 @@ export function App() {
   );
 
   return (
-    <div style={{ minHeight: '100%', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <TopBar view={view} onChange={go} catalog={catalog}
+    <div ref={shellRef} style={{ minHeight: '100%', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <TopBar ref={topBarRef} view={view} onChange={go} catalog={catalog}
               chatOpen={chatOpen} onToggleChat={() => setChatOpen(!chatOpen)} />
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', minWidth: 0 }}>

@@ -39,7 +39,15 @@ export function FilterBar({
   const activeCount = filters.length + (period !== 'all' ? 1 : 0);
 
   return (
-    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+    // Sticks directly beneath the topbar, whose measured height App publishes
+    // as --topbar-h. Needs its own background, or tiles scroll visibly behind
+    // the chips.
+    <div style={{
+      display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center',
+      position: 'sticky', top: 'calc(var(--topbar-h, 56px) + 26px)', zIndex: 40,
+      background: 'var(--canvas)', borderBottom: '0.5px solid var(--border)',
+      padding: '10px 0', marginBottom: 6,
+    }}>
       <select value={period} onChange={(e) => onChange({ filters, period: e.target.value })}
               className="focusable" aria-label="Period"
               style={{ ...chipStyle, color: period === 'all' ? 'var(--text-primary)' : 'var(--green-text)',
