@@ -47,12 +47,7 @@ So: **develop on :5173, and use :8787 deliberately** when you want the one-proce
 
 The whole app is behind HTTP Basic auth — pages, deep links, the API and the static assets alike.
 
-| | |
-|---|---|
-| User | `REDACTED` |
-| Password | `REDACTED` |
-
-Locally these come from `.dev.vars`. The Worker **fails closed**: with them unset it returns 503 rather than serving the app, because the opposite default turns one forgotten `wrangler secret put` into a public dashboard.
+Credentials are **not in this repository**. They are shared with the submission, out of band; set them locally in `.dev.vars` and on the deployment as Worker secrets. The Worker **fails closed**: with them unset it returns 503 rather than serving the app, because the opposite default turns one forgotten `wrangler secret put` into a public dashboard.
 
 On `:5173` you will not see a browser prompt. Vite serves the page and proxies `/api` to the Worker, so the browser never receives the 401 challenge — Vite reads the same two values from `.dev.vars` and attaches them to proxied calls instead. On `:8787` the Worker serves everything and the browser prompts normally.
 
@@ -80,8 +75,8 @@ The dashboard, forecasts, breakdown scatter and every explainability panel work 
 |---|---|---|
 | `OPENROUTER_API_KEY` | Worker secret | Planner access. **Never** a `var`, never bundled into the SPA |
 | `OPENROUTER_MODEL` | `wrangler.toml` var | Defaults to `google/gemini-3.8-flash` |
-| `AUTH_USER` | Worker secret | Basic-auth user. `REDACTED` |
-| `AUTH_PASSWORD` | Worker secret | Basic-auth password. `REDACTED` |
+| `AUTH_USER` | Worker secret | Basic-auth user. Never a var |
+| `AUTH_PASSWORD` | Worker secret | Basic-auth password. Never a var |
 
 Copy `.dev.vars.example` to `.dev.vars` for local runs. `.dev.vars` is gitignored, and no secret is committed.
 
@@ -105,8 +100,8 @@ npm run db:remote
 
 # 4. Store the secrets — never vars, never in the repo
 npx wrangler secret put OPENROUTER_API_KEY
-npx wrangler secret put AUTH_USER        # REDACTED
-npx wrangler secret put AUTH_PASSWORD    # REDACTED
+npx wrangler secret put AUTH_USER
+npx wrangler secret put AUTH_PASSWORD
 
 # 5. Build and deploy
 npm run deploy

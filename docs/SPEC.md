@@ -316,7 +316,7 @@ The README follows the brief's structure heading for heading:
 ## 12. Deployment and security
 
 - Deployed to Cloudflare Pages at a publicly accessible URL, fully usable with no local setup
-- **HTTP Basic auth over the whole deployment** — pages, deep links, API and static assets. Test credentials ship with the submission: `REDACTED` / `REDACTED`
+- **HTTP Basic auth over the whole deployment** — pages, deep links, API and static assets. Test credentials are shared with the submission out of band, never committed
 - Gating the SPA needs `run_worker_first` on the assets binding. Without it the asset router answers matching paths before the Worker runs, so `/` would serve `index.html` to anyone while only `/api/*` was protected
 - Credentials are Worker secrets, and the gate **fails closed**: unset means 503, not open
 - **No secrets in the repository.** `OPENROUTER_API_KEY` is a Worker secret (`wrangler secret put`), never a `var`, and never bundled into the SPA — a key on a public deployment is scraped and drained within hours. `.dev.vars.example` lists the names with empty values and `.dev.vars` is gitignored

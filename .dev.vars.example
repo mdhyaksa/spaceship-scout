@@ -6,7 +6,8 @@ OPENROUTER_API_KEY=
 OPENROUTER_MODEL=google/gemini-3.8-flash
 
 # The Basic-auth gate. The Worker fails closed, so it is unreachable until
-# these are set. Vite reads the same two values and attaches them to proxied
+# both are set. Vite reads the same two values and attaches them to proxied
 # API calls, so the dev server works without a browser prompt.
-AUTH_USER=REDACTED
-AUTH_PASSWORD=REDACTED
+# Values are shared out of band — never commit them.
+AUTH_USER=
+AUTH_PASSWORD=
