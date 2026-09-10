@@ -208,6 +208,23 @@ What the user *does* feel is the wait. The planner sits between the question and
 
 Confidence below 0.5 routes to `clarify` whatever intent the model chose, because a confident wrong answer is the most expensive failure this system has.
 
+### What the "Verified" pill means
+
+Every chat answer carries a green **Verified** pill. It is not decoration, and it is not a claim that the answer is *correct* — it is a claim about **where the number came from**.
+
+Verified means the whole path was deterministic and inspectable:
+
+1. The model emitted a **query plan**, not an answer — a schema-constrained object naming metrics and dimensions.
+2. The plan was **validated** against the semantic layer: every metric and dimension exists, the grain is legal, the date range intersects the data.
+3. The compiler turned it into **SQL from the layer's own metric definitions** — so `delay_rate` is delayed over *completed*, because that is what the YAML says, not because the model guessed a denominator.
+4. Every figure in the answer text came back from that query. The prose is a template filled from the rows; it cannot state a number the query did not return.
+
+So the pill means: **the model chose the question, the database answered it.** Hover it in the app for the short version, and open *How was this computed?* for the plan, the SQL and the rows behind it.
+
+**What it does not mean.** It does not mean the number is *useful* — a verified answer can still rest on eight deliveries, which is why the sufficiency guard runs separately and may refuse to name a winner in the very same answer. Nor does it mean the model understood you: a plan can be validly compiled and still answer a different question than you asked, which is what the interpretation line and the plan itself are there to let you check.
+
+**Why every answer currently shows it.** The design has a second state, `unverified`, for answers produced by the raw-SQL escape hatch — a model writing SQL directly, guarded but not checked against defined metrics. That path is specified and deliberately not built (see Limitations), so in this release there is nothing that can produce an unverified answer. The field ships anyway, because the alternative is retrofitting a trust distinction into a UI that never had one.
+
 ### What the AI never does
 
 It never produces a number, never writes SQL, never defines a metric, and never decides whether a difference is significant. Answer prose is a deterministic template filled from the returned rows.
@@ -291,7 +308,8 @@ The trade is real: **it hides data by default**, which is a thing to be uncomfor
 - **No SKU-level forecasting.** 355 SKUs across 400 orders, 1.13 each, maximum 3. The service refuses with the arithmetic and offers the parent category one click away, rather than fitting a line through nothing.
 - **Every forecast is low-confidence.** All series have 12 monthly points, below the 24-observation threshold. The interval is the answer; the line is indicative.
 - **No cost, margin or freight columns**, no customer master data. Those questions are refused, not estimated.
-- **No raw-SQL fallback.** A question the layer cannot express clarifies rather than falling through to generated SQL. The guards and trust marking for that path are specified but not built.
+- **No raw-SQL fallback.** A question the layer cannot express clarifies rather than falling through to generated SQL. The guards and trust marking for that path are specified but not built — which is why every answer in this release is Verified.
+- **No pinning a chat answer to the dashboard.** The design has it (`docs/SPEC.md` §7.1) and the mechanism is cheap, since a pinned tile would store the plan rather than the result and re-execute like any other tile. It is not built: without per-user identity a pin is per-browser, and a dashboard section that only its author can see is closer to a scratchpad than a dashboard. Tile → chat still works: any card or chart can hand its plan to the chat as context.
 - **P95 is discrete, not interpolated** — it reports a transit time some order actually had, and is identical on SQLite and Postgres.
 - **Dashboard tiles are not logged.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface.
 - **Sample sizes are thin almost everywhere.** 5 of 9 carriers, 25 of 30 clients and 37 of 47 lanes fall below their floor. The UI states the coverage rather than quietly muting them.

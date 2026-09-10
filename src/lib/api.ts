@@ -21,7 +21,6 @@ export const api = {
   },
   tiles: (body: { filters: Filter[]; period?: string; refresh?: string | null; breakdownDimension?: string; tiles?: string[] }) =>
     post<Record<string, Answer>>('/api/tiles', body),
-  run: (ir: QueryIR, refresh = false) => post<Answer>('/api/run', { ir, refresh }),
   query: (question: string, context?: QueryIR | null) =>
     post<Answer>('/api/query', { question, context: context ?? null }),
   forecast: (body: Record<string, unknown>) => post<Answer>('/api/forecast', body),

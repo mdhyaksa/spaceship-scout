@@ -11,15 +11,11 @@ import { ColumnChart } from '../charts/ColumnChart.tsx';
 import { Histogram } from '../charts/Histogram.tsx';
 import { BreakdownScatter, type ScatterPoint } from '../charts/BreakdownScatter.tsx';
 
-export interface Pinned { id: string; title: string; ir: QueryIR }
-
 export function Overview({
-  catalog, onAddToChat, pins, onUnpin,
+  catalog, onAddToChat,
 }: {
   catalog: LayerCatalog | null;
   onAddToChat: (label: string, ir: QueryIR) => void;
-  pins: Pinned[];
-  onUnpin: (id: string) => void;
 }) {
   const [filters, setFilters] = useState<Filter[]>([]);
   const [period, setPeriod] = useState('all');
@@ -27,7 +23,6 @@ export function Overview({
   const [tiles, setTiles] = useState<Record<string, Answer>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pinAnswers, setPinAnswers] = useState<Record<string, Answer>>({});
   const [showAllGroups, setShowAllGroups] = useState(false);
 
   // Switching the breakdown dimension quickly fires overlapping requests, and
@@ -54,13 +49,6 @@ export function Overview({
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    // A pinned tile stores the plan, not the result, so it re-executes on load
-    // and stays as current as anything else on the dashboard.
-    void Promise.all(pins.map(async (p) => [p.id, await api.run(p.ir)] as const))
-      .then((entries) => setPinAnswers(Object.fromEntries(entries)))
-      .catch(() => undefined);
-  }, [pins]);
 
   const breakdown = tiles['chart_breakdown'];
   const breakdownRows = breakdown?.data?.rows ?? [];
@@ -201,18 +189,6 @@ export function Overview({
         </TileFrame>
       </div>
 
-      {pins.length > 0 && (
-        <div style={{ display: 'grid', gap: 12 }}>
-          <h2 style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>Pinned from chat</h2>
-          {pins.map((pin) => (
-            <TileFrame key={pin.id} title={pin.title} answer={pinAnswers[pin.id] ?? null}
-                       pinned onPin={() => onUnpin(pin.id)}
-                       onRefresh={() => void api.run(pin.ir, true).then((a) => setPinAnswers((s) => ({ ...s, [pin.id]: a })))}>
-              <p style={{ fontSize: 'var(--text-md)' }}>{pinAnswers[pin.id]?.text ?? 'Re-running the saved plan…'}</p>
-            </TileFrame>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

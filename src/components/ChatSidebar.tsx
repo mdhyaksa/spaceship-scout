@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { LayerCatalog } from '../../shared/types.ts';
 import type { ChatTurn, Conversation, TileContext } from '../lib/chat.ts';
 import { titleFor } from '../lib/chat.ts';
 import { ExplainPanel } from './ExplainPanel.tsx';
 import { ChevronIcon, WarnIcon } from './Icons.tsx';
+import { InfoTooltip } from './InfoTooltip.tsx';
 
 const SUGGESTIONS = [
   'Which carrier has the highest delay rate?',
@@ -22,10 +22,9 @@ const SUGGESTIONS = [
  * the charts, which measure their own container, re-lay out at the new width.
  */
 export function ChatSidebar({
-  catalog, conversations, activeId, context, busy,
-  onAsk, onSelect, onNew, onClearContext, onPin, onClose,
+  conversations, activeId, context, busy,
+  onAsk, onSelect, onNew, onClearContext, onClose,
 }: {
-  catalog: LayerCatalog | null;
   conversations: Conversation[];
   activeId: string | null;
   context: TileContext | null;
@@ -34,7 +33,6 @@ export function ChatSidebar({
   onSelect: (id: string) => void;
   onNew: () => void;
   onClearContext: () => void;
-  onPin: (turn: ChatTurn) => void;
   onClose: () => void;
 }) {
   const [listOpen, setListOpen] = useState(false);
@@ -58,9 +56,16 @@ export function ChatSidebar({
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px',
                        borderBottom: '0.5px solid var(--border)' }}>
         <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 500 }}>Ask</h2>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-          {catalog ? `from ${catalog.row_count} orders` : ''}
-        </span>
+        {/* Starting a conversation is a primary action, so it sits in the
+            header rather than at the bottom of a collapsed list nobody opens
+            unless they already have several. */}
+        <button onClick={onNew} className="focusable"
+                style={{ fontSize: 'var(--text-sm)', padding: '5px 13px', cursor: 'pointer',
+                         borderRadius: 'var(--radius-pill)', border: '0.5px solid var(--border-strong)',
+                         background: 'var(--surface-card)', color: 'var(--text-secondary)',
+                         whiteSpace: 'nowrap' }}>
+          New Chat
+        </button>
         <button onClick={onClose} aria-label="Close chat" className="focusable"
                 style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
                          color: 'var(--text-muted)', fontSize: 'var(--text-md)', padding: 3 }}>✕</button>
@@ -94,11 +99,6 @@ export function ChatSidebar({
                 {titleFor(c)}
               </button>
             ))}
-            <button onClick={() => { onNew(); setListOpen(false); }} className="focusable"
-                    style={{ textAlign: 'left', padding: '6px 9px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                             background: 'transparent', color: 'var(--green-text)', fontSize: 'var(--text-sm)' }}>
-              + New conversation
-            </button>
           </div>
         )}
       </div>
@@ -130,7 +130,7 @@ export function ChatSidebar({
           </div>
         )}
 
-        {active?.turns.map((turn, i) => <Turn key={i} turn={turn} onPin={() => onPin(turn)} />)}
+        {active?.turns.map((turn, i) => <Turn key={i} turn={turn} />)}
         <div ref={endRef} />
       </div>
 
@@ -153,7 +153,7 @@ export function ChatSidebar({
   );
 }
 
-function Turn({ turn, onPin }: { turn: ChatTurn; onPin: () => void }) {
+function Turn({ turn }: { turn: ChatTurn }) {
   const answer = turn.answer;
   return (
     <div style={{ minWidth: 0 }}>
@@ -168,13 +168,12 @@ function Turn({ turn, onPin }: { turn: ChatTurn; onPin: () => void }) {
         <div style={{ background: 'var(--surface-inset)', borderRadius: 9, padding: '11px 13px', minWidth: 0 }}>
           <p style={{ fontSize: 'var(--text-md)', lineHeight: 1.55 }}>{answer.text}</p>
           <div style={{ display: 'flex', gap: 6, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="pill" style={{ background: 'var(--green-tint)', color: 'var(--green-text)' }}>Verified</span>
-            <button onClick={onPin} className="focusable"
-                    style={{ marginLeft: 'auto', fontSize: 'var(--text-sm)', background: 'none',
-                             border: '0.5px solid var(--border-strong)', borderRadius: 'var(--radius-pill)',
-                             padding: '4px 12px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-              Pin to dashboard
-            </button>
+            <InfoTooltip label="Verified" width={300}
+                         text="Every figure here came from SQL the compiler built out of the semantic layer's metric definitions, validated before it ran. The model chose which metrics to ask for; it never produced a number. Open 'How was this computed?' for the plan, the SQL and the rows.">
+              <span className="pill" style={{ background: 'var(--green-tint)', color: 'var(--green-text)', cursor: 'help' }}>
+                Verified
+              </span>
+            </InfoTooltip>
           </div>
           {answer.sufficiency?.coverage_caption && (
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 7 }}>

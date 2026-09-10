@@ -198,9 +198,9 @@ Two directions, and they are not symmetrical.
 
 **Tile → chat.** Every card and chart has an "Add to chat" control that attaches that tile's query plan (IR) as context to the active chat window, so a follow-up question inherits the tile's filters and metrics instead of restating them.
 
-**Chat → dashboard.** Every verified answer has a "Pin to dashboard" control. Pinning saves **the IR, not the result**: a pinned tile re-executes on load, so it stays current and inherits the same cache key and refresh behaviour as a built-in tile.
+**Chat → dashboard — specified, not built.** The design is that a verified answer can be pinned, saving **the IR rather than the result**, so a pinned tile re-executes on load and inherits the same cache key and refresh behaviour as a built-in tile. It was removed after use: without per-user identity (§13) a pin is per-browser, so a "pinned to the dashboard" section is visible only to whoever created it — a scratchpad wearing a dashboard's clothes. The control was doing less than its label promised.
 
-Pinning is gated on `trust: "verified"`. With the raw-SQL escape hatch deferred (§10), every answer in v1 is verified, so the gate is specified and forward-compatible but never blocks. `docs/DESIGN.md` §8.3 defines the unverified treatment for when that path lands.
+It returns with authentication. The gate it would need already exists in the envelope: pinning is conditioned on `trust: "verified"`, and `docs/DESIGN.md` §8.3 defines the unverified treatment for when the raw-SQL path lands.
 
 ---
 
@@ -280,13 +280,14 @@ The brief budgets 6–10 hours and says plainly: do not over-engineer. The compa
 - Planner: single tier, one forced tool call (§5.1, §5.2)
 - Explainability panel on every tile and every answer, plus the full sufficiency guard — small-group, ranking, and the flat-distribution χ² (§9, §9.1)
 - Forecast service: guards, backtest method selection, intervals, inventory (§6.3)
-- Pinning in both directions (§7.1)
+- Tile → chat context (§7.1)
 - Query log and a coverage page (§8.1)
 - Golden set of 24 behavioural cases, and the three conformance tests wired into CI (§1.2)
 
 **Deferred — documented in README Future Improvements, not started:**
 
 - Tier-2 model routing and the planner retry (§5.3)
+- Pinning a chat answer to the dashboard (§7.1) — needs authentication to be worth more than a per-browser scratchpad
 - Dedicated Carriers, Lanes and Clients routes. These were never built, and the disabled nav entries standing in for them have been removed rather than left looking broken — the Breakdown tile's dimension switcher covers all three
 - Raw-SQL escape hatch and the unverified-trust surface (§7)
 - SQL feature extraction, question clustering, gap taxonomy, promotion workflow, SLIs (§8.2–8.8)

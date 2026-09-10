@@ -10,7 +10,7 @@
 import { layer } from '../semantic/layer.generated.ts';
 import type { Filter, QueryIR } from '../shared/ir.ts';
 import type { Answer, CoverageRow } from '../shared/types.ts';
-import { emptyIR, queryIrSchema } from '../shared/ir.ts';
+import { emptyIR } from '../shared/ir.ts';
 import { d1Database, type Database } from './db.ts';
 import { resolveRange, dataAsOf } from './time.ts';
 import { cacheGet, cacheKey, cacheSet } from './cache.ts';
@@ -54,7 +54,6 @@ export default {
 async function route(path: string, request: Request, env: Env, db: Database): Promise<Response> {
   if (path === '/api/layer') return json(await catalog(db));
   if (path === '/api/tiles') return handleTiles(request, db);
-  if (path === '/api/run') return handleRun(request, db);
   if (path === '/api/query') return handleQuery(request, env, db);
   if (path === '/api/forecast') return handleForecast(request, db);
   if (path === '/api/coverage') return handleCoverage(db);
@@ -125,25 +124,6 @@ async function handleTiles(request: Request, db: Database): Promise<Response> {
     });
   }
   return json(out);
-}
-
-/**
- * Execute a plan the client already holds — a pinned answer, re-run on load.
- *
- * Pinning saves the IR rather than the result, so a pinned tile stays current
- * and inherits the same cache and refresh behaviour as a built-in one. Running
- * a client-supplied plan grants no power the chat does not already have: it
- * goes through the same validator and compiler, and an invalid plan is
- * refused rather than executed.
- */
-async function handleRun(request: Request, db: Database): Promise<Response> {
-  const body = (await request.json()) as { ir?: QueryIR; refresh?: boolean };
-  if (!body.ir) return json({ error: 'A plan is required.' }, 400);
-  const parsed = queryIrSchema.safeParse(body.ir);
-  if (!parsed.success) {
-    return json({ error: `That plan does not match the schema: ${parsed.error.issues.map((i) => i.message).join('; ')}` }, 400);
-  }
-  return json(await execute(parsed.data, layer, db, { requestId: requestId(), cacheable: true, refresh: body.refresh }));
 }
 
 async function handleQuery(request: Request, env: Env, db: Database): Promise<Response> {

@@ -21,7 +21,6 @@ export interface TileContext {
 }
 
 export const CHAT_KEY = 'spaceship.conversations.v1';
-export const PIN_KEY = 'spaceship.pinned.v1';
 
 export function newConversation(): Conversation {
   return { id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, title: 'New question', turns: [], createdAt: Date.now() };

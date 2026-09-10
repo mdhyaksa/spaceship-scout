@@ -4,12 +4,12 @@ import type { QueryIR } from '../shared/ir.ts';
 import { api } from './lib/api.ts';
 import type { View } from './lib/views.ts';
 import {
-  CHAT_KEY, PIN_KEY, load, newConversation, save, titleFor,
+  CHAT_KEY, load, newConversation, save, titleFor,
   type ChatTurn, type Conversation, type TileContext,
 } from './lib/chat.ts';
 import { TopBar } from './components/TopBar.tsx';
 import { ChatSidebar } from './components/ChatSidebar.tsx';
-import { Overview, type Pinned } from './views/Overview.tsx';
+import { Overview } from './views/Overview.tsx';
 import { Coverage } from './views/Coverage.tsx';
 
 // Recharts is only needed for the forecast band, and it is most of the bundle.
@@ -50,7 +50,6 @@ export function App() {
   const [context, setContext] = useState<TileContext | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const [pins, setPins] = useState<Pinned[]>(() => load<Pinned[]>(PIN_KEY, []));
   const [wide, setWide] = useState(() => window.innerWidth >= SPLIT_MIN_WIDTH);
 
   // The filter bar sticks directly beneath the topbar, and the sidebar starts
@@ -83,7 +82,6 @@ export function App() {
   }, []);
 
   useEffect(() => save(CHAT_KEY, conversations), [conversations]);
-  useEffect(() => save(PIN_KEY, pins), [pins]);
 
   const go = (next: View) => {
     window.location.hash = `#/${next}`;
@@ -128,10 +126,6 @@ export function App() {
     }
   }, [activeId, conversations, context, startConversation]);
 
-  const pinTurn = useCallback((turn: ChatTurn) => {
-    if (!turn.answer?.explain) return;
-    setPins((all) => [...all, { id: `pin_${Date.now()}`, title: turn.question, ir: turn.answer!.explain!.ir }]);
-  }, []);
 
   const sidebar = chatOpen && (
     <div style={
@@ -146,7 +140,6 @@ export function App() {
         : { position: 'fixed', inset: 'calc(var(--topbar-h, 56px) + 24px) 10px 10px 10px', zIndex: 80 }
     }>
       <ChatSidebar
-        catalog={catalog}
         conversations={conversations}
         activeId={activeId}
         context={context}
@@ -155,7 +148,6 @@ export function App() {
         onSelect={setActiveId}
         onNew={startConversation}
         onClearContext={() => setContext(null)}
-        onPin={pinTurn}
         onClose={() => setChatOpen(false)}
       />
     </div>
@@ -176,8 +168,7 @@ export function App() {
             </div>
           )}
           {view === 'overview' && (
-            <Overview catalog={catalog} onAddToChat={addToChat}
-                      pins={pins} onUnpin={(id) => setPins((all) => all.filter((p) => p.id !== id))} />
+            <Overview catalog={catalog} onAddToChat={addToChat} />
           )}
           {view === 'forecast' && (
             <Suspense fallback={<p style={{ fontSize: 'var(--text-md)', color: 'var(--text-muted)' }}>Loading the forecast view…</p>}>

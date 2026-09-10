@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { Answer } from '../../shared/types.ts';
 import { ExplainPanel } from './ExplainPanel.tsx';
 import { ExplainBubble } from './ExplainBubble.tsx';
-import { ChatIcon, PinIcon, RefreshIcon, WarnIcon } from './Icons.tsx';
+import { ChatIcon, RefreshIcon, WarnIcon } from './Icons.tsx';
 
 /**
  * Every tile gets the same controls once: refresh (busts this tile's cache key
@@ -14,7 +14,7 @@ import { ChatIcon, PinIcon, RefreshIcon, WarnIcon } from './Icons.tsx';
  * opening one moved the other.
  */
 export function TileFrame({
-  title, subtitle, answer, note, onRefresh, onAddToChat, onPin, pinned, actions, children,
+  title, subtitle, answer, note, onRefresh, onAddToChat, actions, children,
 }: {
   title: string;
   subtitle?: string;
@@ -22,8 +22,6 @@ export function TileFrame({
   note?: string;
   onRefresh?: () => void;
   onAddToChat?: () => void;
-  onPin?: () => void;
-  pinned?: boolean;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -41,7 +39,6 @@ export function TileFrame({
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
           {actions}
           {onAddToChat && <IconButton label="Add to chat" onClick={onAddToChat}><ChatIcon /></IconButton>}
-          {onPin && <IconButton label={pinned ? 'Unpin' : 'Pin to dashboard'} onClick={onPin} active={pinned}><PinIcon /></IconButton>}
           {onRefresh && <IconButton label="Refresh" onClick={onRefresh}><RefreshIcon /></IconButton>}
         </div>
       </header>

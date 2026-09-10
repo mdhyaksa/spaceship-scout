@@ -10,7 +10,14 @@ import { InfoIcon } from './Icons.tsx';
  * Opens on hover and on focus, toggles on click so it works by touch and by
  * keyboard, and stays in the accessibility tree either way.
  */
-export function InfoTooltip({ text, label }: { text: string; label: string }) {
+export function InfoTooltip({ text, label, children, width = 250 }: {
+  text: string;
+  label: string;
+  /** Trigger. Defaults to an info icon; pass an element to make that element
+   *  the trigger instead — the Verified pill explains itself this way. */
+  children?: React.ReactNode;
+  width?: number;
+}) {
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
@@ -39,13 +46,14 @@ export function InfoTooltip({ text, label }: { text: string; label: string }) {
               onBlur={() => !pinned && setOpen(false)}
               style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                        display: 'flex', color: open ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-        <InfoIcon />
+        {children ?? <InfoIcon />}
       </button>
       {open && (
         <span id={id} role="tooltip"
               style={{
                 position: 'absolute', top: 'calc(100% + 7px)', left: '50%', transform: 'translateX(-50%)',
-                width: 250, zIndex: 60, padding: '9px 11px',
+                textAlign: 'left',
+                width, zIndex: 60, padding: '9px 11px',
                 background: 'var(--surface-rail)', color: 'var(--text-on-rail)',
                 borderRadius: 8, fontSize: 'var(--text-sm)', lineHeight: 1.5, fontWeight: 400,
                 boxShadow: '0 8px 22px rgba(20, 20, 20, 0.22)',
