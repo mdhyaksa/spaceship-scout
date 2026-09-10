@@ -295,6 +295,12 @@ The trade is real: **it hides data by default**, which is a thing to be uncomfor
 - **P95 is discrete, not interpolated** — it reports a transit time some order actually had, and is identical on SQLite and Postgres.
 - **Dashboard tiles are not logged.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface.
 - **Sample sizes are thin almost everywhere.** 5 of 9 carriers, 25 of 30 clients and 37 of 47 lanes fall below their floor. The UI states the coverage rather than quietly muting them.
+- **No authentication, so no per-user anything.** Everyone who opens the URL gets the same dashboard, and there is no identity to hang a conversation on. Three consequences follow:
+  - **Chat history is per browser, not per user.** Conversations and pinned tiles live in `localStorage` (`spaceship.conversations.v1`, `spaceship.pinned.v1`). They do not follow you to another device or another browser, are not visible to anyone else, and vanish when site data is cleared.
+  - **The query log records no `user_id`.** `Natural_language_query_spec.md` §8.1 designs the column; the shipped table omits it, because there is nothing truthful to write in it.
+  - **That weakens the coverage loop more than it first appears.** §8.5 ranks gaps by `distinct_users × log(question_count)`, so that a question asked once each by twelve people outranks one asked twelve times by a single power user. Without identity the coverage page can only rank by raw frequency, which is exactly the ranking that flatters one persistent user. Adding auth is therefore a prerequisite for Future Improvement 1, not an orthogonal feature.
+
+  Adding it is not deep work — the compiler would need a non-bypassable tenant filter either way (`docs/tech-stack.md` §11.4) — but nothing here pretends to be multi-tenant today.
 
 ## Future improvements
 
