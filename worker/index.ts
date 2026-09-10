@@ -12,7 +12,8 @@ import type { Filter, QueryIR } from '../shared/ir.ts';
 import type { Answer, CoverageRow } from '../shared/types.ts';
 import { emptyIR, queryIrSchema } from '../shared/ir.ts';
 import { d1Database, type Database } from './db.ts';
-import { resolveRange } from './time.ts';
+import { resolveRange, dataAsOf } from './time.ts';
+import { cacheGet, cacheKey, cacheSet } from './cache.ts';
 import { execute } from './execute.ts';
 import { buildCatalog } from './catalog.ts';
 import { breakdownIR, findTile, TILES } from './tiles.ts';
@@ -51,13 +52,24 @@ export default {
 };
 
 async function route(path: string, request: Request, env: Env, db: Database): Promise<Response> {
-  if (path === '/api/layer') return json(buildCatalog(layer));
+  if (path === '/api/layer') return json(await catalog(db));
   if (path === '/api/tiles') return handleTiles(request, db);
   if (path === '/api/run') return handleRun(request, db);
   if (path === '/api/query') return handleQuery(request, env, db);
   if (path === '/api/forecast') return handleForecast(request, db);
   if (path === '/api/coverage') return handleCoverage(db);
   return json({ error: 'Unknown route' }, 404);
+}
+
+/** The catalog changes only when the layer or the data does, and it runs a
+ *  handful of DISTINCT queries, so it is worth not rebuilding per request. */
+async function catalog(db: Database) {
+  const key = cacheKey(['catalog', layer.version, dataAsOf(layer)]);
+  const hit = cacheGet<Awaited<ReturnType<typeof buildCatalog>>>(key);
+  if (hit) return hit;
+  const built = await buildCatalog(layer, db);
+  cacheSet(key, built);
+  return built;
 }
 
 function requestId(): string {

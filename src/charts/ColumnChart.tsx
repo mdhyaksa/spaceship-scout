@@ -1,10 +1,10 @@
-import { band, linear, niceTicks } from './scale.ts';
+import { band, linear, niceTicks, px } from './scale.ts';
 import { useWidth } from './useWidth.ts';
 import { formatPeriod, formatValue } from '../../shared/format.ts';
 import { Empty } from './CompositionBar.tsx';
 
-const H = 190;
-const PAD = { top: 12, right: 8, bottom: 24, left: 34 };
+const H = px(190);
+const PAD = { top: px(12), right: px(8), bottom: px(26), left: px(38) };
 
 /**
  * One metric over time. Bars start at zero, always — a truncated count axis
@@ -35,7 +35,7 @@ export function ColumnChart({
       {ticks.map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--grid)" strokeWidth={0.5} />
-          <text x={PAD.left - 6} y={y(t) + 3} textAnchor="end" fontSize={11} fill="var(--text-secondary)" className="tnum">
+          <text x={PAD.left - px(6)} y={y(t) + px(3)} textAnchor="end" fontSize={px(11)} fill="var(--text-secondary)" className="tnum">
             {formatValue(t, format)}
           </text>
         </g>
@@ -56,7 +56,7 @@ export function ColumnChart({
               <title>{`${formatPeriod(String(r['period']))}: ${formatValue(v, format)}${isPartial ? ' (partial period)' : ''}`}</title>
             </rect>
             {(rows.length <= 12 || i % 2 === 0) && (
-              <text x={bars.centre(i)} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--text-secondary)">
+              <text x={bars.centre(i)} y={H - px(8)} textAnchor="middle" fontSize={px(11)} fill="var(--text-secondary)">
                 {formatPeriod(String(r['period']))}
               </text>
             )}

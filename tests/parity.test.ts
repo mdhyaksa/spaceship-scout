@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { layer } from '../semantic/layer.generated.ts';
+import { buildCatalog } from '../worker/catalog.ts';
 import { emptyIR, type QueryIR } from '../shared/ir.ts';
 import { compile } from '../worker/compile.ts';
 import { CARDS } from '../worker/tiles.ts';
@@ -144,6 +145,33 @@ describe('SQL agrees with the CSV — scalars', () => {
     expect(Number(row!['gross_revenue'])).toBeCloseTo(gross, 6);
     expect(Number(row!['net_revenue'])).toBeCloseTo(net, 6);
     expect(Number(row!['promo_discount_value'])).toBeCloseTo(gross - net, 6);
+  });
+});
+
+describe('declared dimension values agree with the data', () => {
+  // Where the layer enumerates a dimension's values, three things read that
+  // list: the validator (which rejects anything outside it), the planner
+  // prompt, and the filter chips. If the data drifts from the declaration,
+  // a real value becomes unfilterable and unaskable. This is the check that
+  // makes the split in worker/catalog.ts safe.
+  it.each(
+    Object.entries(layer.dimensions).filter(([, d]) => d.values),
+  )('%s declares exactly the values present', async (name, dim) => {
+    const rows = await database.run<{ v: string | number }>(
+      `SELECT DISTINCT ${dim.expr} AS v FROM fct_orders WHERE ${dim.expr} IS NOT NULL ORDER BY v`,
+    );
+    expect(new Set(rows.map((r) => String(r.v)))).toEqual(new Set(dim.values));
+  });
+
+  it('offers live values for dimensions the layer does not enumerate', async () => {
+    const catalog = await buildCatalog(layer, database);
+    const byName = Object.fromEntries(catalog.dimensions.map((d) => [d.name, d]));
+    // Both of these used to fall through to "filter from the chat instead".
+    expect(byName['warehouse']!.values).toHaveLength(9);
+    expect(byName['is_promo']!.values).toEqual(['0', '1']);
+    // High-cardinality and computed dimensions stay out of the chip row.
+    expect(byName['sku']!.values).toBeUndefined();
+    expect(byName['lane']!.values).toBeUndefined();
   });
 });
 

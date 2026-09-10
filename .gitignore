@@ -6,3 +6,4 @@ dist/
 db/local.sqlite
 db/seed.sql
 .env
+/ref

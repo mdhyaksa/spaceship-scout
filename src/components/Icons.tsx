@@ -1,5 +1,5 @@
 /** Six inline icons instead of an icon font. */
-const base = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const base = { width: 17, height: 17, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
 export const RefreshIcon = () => (<svg {...base}><path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4" /><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" /></svg>);
 export const PinIcon = () => (<svg {...base}><path d="M9 4v6l-2 4v2h10v-2l-2-4V4M12 16v5M8 4h8" /></svg>);

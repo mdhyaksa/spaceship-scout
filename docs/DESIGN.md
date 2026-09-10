@@ -282,6 +282,8 @@ When the distribution test returns p > 0.20, render every bar in `muted` with a 
 
 Two weights only, 400 and 500. Tabular figures on every number in a table or axis. Minimum chart height 180px. Minimum tile width 260px for a chart, 140px for a KPI card.
 
+**Scale.** The sizes above are the ramp sampled from the existing product. This dashboard renders that ramp at **1.25x** — 13/14/15/16px with a 25px KPI value — because the sampled density is tighter than this surface is read at. The factor lives in one place, `src/lib/tokens.css`, with `SCALE` in `src/charts/scale.ts` applying it to the SVG constants no CSS token reaches. Change the token, not the literals.
+
 > **Open item.** Track & Trace uses uppercase KPI labels ("FULFILLED", "IN TRANSIT"); this spec is sentence case throughout. Pick one and apply it to both surfaces.
 
 ---

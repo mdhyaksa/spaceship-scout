@@ -58,8 +58,28 @@
 
   --quadrant: #FDF6EA;
 
-  --radius-card: 10px;
+  --radius-card: 12px;
   --radius-pill: 20px;
+
+  /* Type ramp.
+     docs/DESIGN.md section 9 samples the existing product at 10-13px with a
+     19-22px KPI value. That ramp suits its original density and reads too
+     small here, so the whole scale is that ramp x 1.25 — the size this
+     dashboard was being viewed at anyway, with the browser doing the work.
+     One place to tune it, rather than forty literals. */
+  --text-xs: 13px;   /* was 10-11 — captions, pills, axis ticks */
+  --text-sm: 14px;   /* was 11    — labels, secondary lines */
+  --text-md: 15px;   /* was 12    — body, tile titles */
+  --text-lg: 16px;   /* was 13    — emphasis */
+  --kpi:     25px;   /* was 19-22 — KPI value */
+
+  /* Spacing follows the same factor so density holds. */
+  --gap-xs: 5px;
+  --gap-sm: 8px;
+  --gap-md: 12px;
+  --gap-lg: 16px;
+  --pad-card: 14px;
+  --pad-tile: 15px 18px;
 }
 
 * { box-sizing: border-box; }
@@ -71,8 +91,8 @@ body {
   background: var(--canvas);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: var(--text-md);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -87,14 +107,16 @@ button { font: inherit; color: inherit; }
   background: var(--surface-card);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-card);
+  /* Nothing inside a card may force it wider than its grid cell. */
+  min-width: 0;
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  padding: 3px 9px;
+  gap: 6px;
+  font-size: var(--text-xs);
+  padding: 4px 11px;
   border-radius: var(--radius-pill);
   white-space: nowrap;
 }

@@ -1,9 +1,9 @@
-import { band, linear, niceTicks } from './scale.ts';
+import { band, linear, niceTicks, px } from './scale.ts';
 import { useWidth } from './useWidth.ts';
 import { Empty } from './CompositionBar.tsx';
 
-const H = 200;
-const PAD = { top: 14, right: 10, bottom: 34, left: 34 };
+const H = px(200);
+const PAD = { top: px(16), right: px(10), bottom: px(38), left: px(38) };
 
 /**
  * Transit-time distribution.
@@ -61,7 +61,7 @@ export function Histogram({
         {ticks.map((t) => (
           <g key={t}>
             <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--grid)" strokeWidth={0.5} />
-            <text x={PAD.left - 6} y={y(t) + 3} textAnchor="end" fontSize={11} fill="var(--text-secondary)" className="tnum">{t}</text>
+            <text x={PAD.left - px(6)} y={y(t) + px(3)} textAnchor="end" fontSize={px(11)} fill="var(--text-secondary)" className="tnum">{t}</text>
           </g>
         ))}
         <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} stroke="var(--axis)" strokeWidth={1} />
@@ -72,20 +72,20 @@ export function Histogram({
                   fill={p.days >= tailThreshold ? 'var(--role-ink)' : 'var(--graphite-300)'}>
               <title>{`${p.days} days: ${p.count} orders`}</title>
             </rect>
-            <text x={bars.centre(i)} y={H - 18} textAnchor="middle" fontSize={11} fill="var(--text-secondary)" className="tnum">{p.days}</text>
+            <text x={bars.centre(i)} y={H - px(18)} textAnchor="middle" fontSize={px(11)} fill="var(--text-secondary)" className="tnum">{p.days}</text>
           </g>
         ))}
 
         {/* Reference lines: mean inside the body, p90 out where it matters. */}
         <line x1={xAt(Math.round(mean))} x2={xAt(Math.round(mean))} y1={PAD.top} y2={y(0)}
               stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" opacity={0.45} />
-        <text x={xAt(Math.round(mean)) + 4} y={PAD.top + 9} fontSize={10} fill="var(--text-muted)" className="tnum">
+        <text x={xAt(Math.round(mean)) + 4} y={PAD.top + px(9)} fontSize={px(10)} fill="var(--text-muted)" className="tnum">
           mean {mean.toFixed(1)}
         </text>
         <line x1={xAt(p90)} x2={xAt(p90)} y1={PAD.top} y2={y(0)} stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" />
-        <text x={xAt(p90) + 4} y={PAD.top + 22} fontSize={10} fill="var(--text-primary)" className="tnum">p90 {p90}</text>
+        <text x={xAt(p90) + px(4)} y={PAD.top + px(22)} fontSize={px(10)} fill="var(--text-primary)" className="tnum">p90 {p90}</text>
 
-        <text x={(width + PAD.left) / 2} y={H - 3} textAnchor="middle" fontSize={11} fill="var(--text-muted)">Days in transit</text>
+        <text x={(width + PAD.left) / 2} y={H - px(3)} textAnchor="middle" fontSize={px(11)} fill="var(--text-muted)">Days in transit</text>
       </svg>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
         <span className="tnum">{tailCount}</span> of <span className="tnum">{total}</span> orders take {tailThreshold} days or more.

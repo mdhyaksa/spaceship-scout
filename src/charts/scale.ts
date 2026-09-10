@@ -6,6 +6,24 @@
  * inline reference labels. Each of those is a fight with a library's theming
  * layer and a few lines of raw SVG.
  */
+/**
+ * Every chart constant runs through px().
+ *
+ * The design ramp in docs/DESIGN.md was sampled at a tighter density than this
+ * dashboard is read at, so the whole UI is that ramp x 1.25 (src/lib/tokens.css).
+ * SVG carries its own font sizes and padding, which no CSS token reaches, so
+ * the same factor is applied here.
+ *
+ * Deliberately not `zoom: 1.25` on the root: zoom changes the coordinate space
+ * that ResizeObserver reports to useWidth, and it would also desynchronise the
+ * viewport coordinates the explain bubble is positioned from.
+ */
+export const SCALE = 1.25;
+
+export function px(value: number): number {
+  return Math.round(value * SCALE);
+}
+
 export type Scale = (value: number) => number;
 
 export function linear(domain: [number, number], range: [number, number]): Scale {

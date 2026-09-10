@@ -39,7 +39,7 @@ export function FilterBar({
   const activeCount = filters.length + (period !== 'all' ? 1 : 0);
 
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+    <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
       <select value={period} onChange={(e) => onChange({ filters, period: e.target.value })}
               className="focusable" aria-label="Period"
               style={{ ...chipStyle, color: period === 'all' ? 'var(--text-primary)' : 'var(--green-text)',
@@ -61,18 +61,18 @@ export function FilterBar({
             </button>
             {open && (
               <div className="card" style={{ position: 'absolute', top: '110%', left: 0, zIndex: 30, padding: 6,
-                                             minWidth: 168, maxHeight: 240, overflowY: 'auto',
+                                             minWidth: 200, maxHeight: 280, overflowY: 'auto',
                                              boxShadow: '0 6px 18px rgba(20,20,20,0.10)' }}>
                 {values.map((v) => (
                   <label key={v} style={{ display: 'flex', gap: 7, alignItems: 'center', padding: '4px 6px',
-                                          fontSize: 12, cursor: 'pointer', borderRadius: 5 }}>
+                                          fontSize: 'var(--text-md)', cursor: 'pointer', borderRadius: 6 }}>
                     <input type="checkbox" checked={chosen.includes(v)} onChange={() => toggle(dim.name, v)} />
                     {dim.name === 'is_promo' ? (v === '1' ? 'Promotional' : 'Standard') : v}
                   </label>
                 ))}
                 {values.length === 0 && (
                   <p style={{ fontSize: 11, color: 'var(--text-muted)', padding: 6 }}>
-                    {dim.approx_cardinality} values — filter from the chat instead.
+                    {dim.approx_cardinality} values — too many for a chip. Filter from the chat instead.
                   </p>
                 )}
               </div>
@@ -88,16 +88,17 @@ export function FilterBar({
         </button>
       )}
 
-      <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }} className="tnum">
-        Data through {catalog.data_as_of} · layer {catalog.version}
+      <span style={{ marginLeft: 'auto', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'right' }}>
+        Relative dates resolve against the data,{' '}
+        <span className="tnum">{catalog.data_as_of}</span> — not today.
       </span>
     </div>
   );
 }
 
 const chipStyle: React.CSSProperties = {
-  fontSize: 11,
-  padding: '4px 10px',
+  fontSize: 'var(--text-sm)',
+  padding: '6px 13px',
   border: '0.5px solid var(--border-strong)',
   borderRadius: 'var(--radius-pill)',
   background: 'var(--surface-card)',

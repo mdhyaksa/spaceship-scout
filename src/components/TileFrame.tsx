@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Answer } from '../../shared/types.ts';
 import { ExplainPanel } from './ExplainPanel.tsx';
-import { ChatIcon, ChevronIcon, PinIcon, RefreshIcon, WarnIcon } from './Icons.tsx';
+import { ExplainBubble } from './ExplainBubble.tsx';
+import { ChatIcon, PinIcon, RefreshIcon, WarnIcon } from './Icons.tsx';
 
 /**
  * Every tile gets the same controls once: refresh (busts this tile's cache key
  * only), add to chat (attaches this tile's plan as context), pin, and the
- * explainability disclosure.
+ * explanation.
+ *
+ * The explanation opens in a floating bubble rather than expanding inline —
+ * two tiles side by side in a grid row would otherwise stretch together, so
+ * opening one moved the other.
  */
 export function TileFrame({
   title, subtitle, answer, note, onRefresh, onAddToChat, onPin, pinned, actions, children,
@@ -23,14 +28,15 @@ export function TileFrame({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const warnings = answer?.explain?.warnings ?? [];
 
   return (
-    <section className="card" style={{ padding: '12px 14px', minWidth: 260 }}>
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 10 }}>
+    <section className="card" style={{ padding: 'var(--pad-tile)', minWidth: 0 }}>
+      <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <h3 style={{ fontSize: 12, fontWeight: 500 }}>{title}</h3>
-          {subtitle && <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{subtitle}</p>}
+          <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 500 }}>{title}</h3>
+          {subtitle && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{subtitle}</p>}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
           {actions}
@@ -42,14 +48,14 @@ export function TileFrame({
 
       {children}
 
-      {note && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>{note}</p>}
+      {note && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 10 }}>{note}</p>}
 
       {warnings.length > 0 && (
-        <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'grid', gap: 5 }}>
+        <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 6 }}>
           {warnings.map((w, i) => (
-            <li key={i} style={{ display: 'flex', gap: 6, fontSize: 11, color: 'var(--amber-text)',
-                                 background: 'var(--amber-tint)', padding: '5px 8px', borderRadius: 6 }}>
-              <span style={{ flex: 'none', marginTop: 1 }}><WarnIcon /></span>
+            <li key={i} style={{ display: 'flex', gap: 8, fontSize: 'var(--text-sm)', color: 'var(--amber-text)',
+                                 background: 'var(--amber-tint)', padding: '7px 10px', borderRadius: 7 }}>
+              <span style={{ flex: 'none', marginTop: 2 }}><WarnIcon /></span>
               <span>{w}</span>
             </li>
           ))}
@@ -58,12 +64,16 @@ export function TileFrame({
 
       {answer?.explain && (
         <>
-          <button onClick={() => setOpen(!open)} className="focusable"
-                  style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, background: 'none',
-                           border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, color: 'var(--text-secondary)' }}>
-            <ChevronIcon open={open} /> {open ? 'Hide' : 'How was this computed?'}
+          <button ref={triggerRef} onClick={() => setOpen(!open)} className="focusable"
+                  aria-expanded={open}
+                  style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5, background: 'none',
+                           border: 'none', padding: 0, cursor: 'pointer',
+                           fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+            How was this computed?
           </button>
-          {open && <ExplainPanel answer={answer} />}
+          <ExplainBubble open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} label={title}>
+            <ExplainPanel answer={answer} />
+          </ExplainBubble>
         </>
       )}
     </section>
@@ -76,7 +86,7 @@ export function IconButton({ label, onClick, active, children }: {
   return (
     <button aria-label={label} title={label} onClick={onClick} className="focusable"
             style={{ background: active ? 'var(--surface-inset)' : 'none', border: 'none', cursor: 'pointer',
-                     padding: 4, borderRadius: 5, display: 'flex',
+                     padding: 5, borderRadius: 6, display: 'flex',
                      color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
       {children}
     </button>

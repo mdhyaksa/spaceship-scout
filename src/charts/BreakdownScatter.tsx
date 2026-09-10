@@ -1,10 +1,10 @@
-import { linear, niceTicks } from './scale.ts';
+import { linear, niceTicks, px } from './scale.ts';
 import { useWidth } from './useWidth.ts';
 import { formatValue } from '../../shared/format.ts';
 import { Empty } from './CompositionBar.tsx';
 
-const H = 268;
-const PAD = { top: 24, right: 16, bottom: 50, left: 44 };
+const H = px(280);
+const PAD = { top: px(24), right: px(16), bottom: px(52), left: px(48) };
 
 export interface ScatterPoint {
   key: string;
@@ -110,31 +110,31 @@ export function BreakdownScatter({
       {niceTicks(floor, 1, 4).map((t) => (
         <g key={t}>
           <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--grid)" strokeWidth={0.5} />
-          <text x={PAD.left - 6} y={y(t) + 3} textAnchor="end" fontSize={10} fill="var(--text-muted)" className="tnum">
+          <text x={PAD.left - px(6)} y={y(t) + px(3)} textAnchor="end" fontSize={px(10)} fill="var(--text-muted)" className="tnum">
             {(t * 100).toFixed(0)}%
           </text>
         </g>
       ))}
       {niceTicks(0, maxShare, 4).map((t) => (
-        <text key={t} x={x(t)} y={H - PAD.bottom + 16} textAnchor="middle" fontSize={10} fill="var(--text-muted)" className="tnum">
+        <text key={t} x={x(t)} y={H - PAD.bottom + px(16)} textAnchor="middle" fontSize={px(10)} fill="var(--text-muted)" className="tnum">
           {(t * 100).toFixed(0)}%
         </text>
       ))}
 
       <line x1={PAD.left} x2={width - PAD.right} y1={y(target)} y2={y(target)}
             stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" />
-      <text x={width - PAD.right - 2} y={y(target) - 4} textAnchor="end" fontSize={10} fill="var(--text-primary)" className="tnum">
+      <text x={width - PAD.right - px(2)} y={y(target) - px(4)} textAnchor="end" fontSize={px(10)} fill="var(--text-primary)" className="tnum">
         {formatValue(target, 'percent')} target
       </text>
       <line x1={thresholdX} x2={thresholdX} y1={PAD.top} y2={y(floor)} stroke="var(--role-reference)" strokeWidth={0.5} strokeDasharray="3 3" opacity={0.3} />
       <line x1={PAD.left} x2={width - PAD.right} y1={y(floor)} y2={y(floor)} stroke="var(--axis)" strokeWidth={1} />
 
       {inQuadrant.length > 0 ? (
-        <text x={width - PAD.right - 4} y={y(floor) - 6} textAnchor="end" fontSize={10} fill="var(--amber-text)">
+        <text x={width - PAD.right - px(4)} y={y(floor) - px(6)} textAnchor="end" fontSize={px(10)} fill="var(--amber-text)">
           High volume, below target
         </text>
       ) : (
-        <text x={(width + PAD.left) / 2} y={y(floor) - 8} textAnchor="middle" fontSize={12} fill="var(--text-muted)">
+        <text x={(width + PAD.left) / 2} y={y(floor) - px(8)} textAnchor="middle" fontSize={px(12)} fill="var(--text-muted)">
           No high-volume {dimensionLabel.toLowerCase()} is below target.
         </text>
       )}
@@ -162,7 +162,7 @@ export function BreakdownScatter({
               // named, and it is exactly the one that sits closest to the frame.
               const flip = x(p.share) + 12 + p.key.length * 6 > width - PAD.right;
               return (
-                <text x={x(p.share) + (flip ? -9 : 9)} y={y(p.rate) + 3} fontSize={11}
+                <text x={x(p.share) + (flip ? -px(9) : px(9))} y={y(p.rate) + px(3)} fontSize={px(11)}
                       textAnchor={flip ? 'end' : 'start'}
                       fill={thin ? 'var(--text-muted)' : 'var(--text-primary)'}>
                   {p.key}
@@ -173,7 +173,7 @@ export function BreakdownScatter({
         );
       })}
 
-      <text x={(width + PAD.left) / 2} y={H - 6} textAnchor="middle" fontSize={11} fill="var(--text-secondary)">
+      <text x={(width + PAD.left) / 2} y={H - px(6)} textAnchor="middle" fontSize={px(11)} fill="var(--text-secondary)">
         Share of order volume
       </text>
     </svg>
