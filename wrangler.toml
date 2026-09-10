@@ -1,4 +1,4 @@
-name = "spaceship-logistics"
+name = "spaceship-intel"
 main = "worker/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -10,12 +10,18 @@ compatibility_flags = ["nodejs_compat"]
 # explicit fallback in worker/index.ts a deep link 404s.
 assets = { directory = "dist", binding = "ASSETS", not_found_handling = "single-page-application" }
 
+# Cloudflare's CI runs `npx wrangler deploy` directly rather than an npm
+# script, so the build has to hang off wrangler itself. Without this, dist/
+# does not exist at deploy time and the assets directory check fails.
+[build]
+command = "npm run build"
+
 [[d1_databases]]
 binding = "DB"
-database_name = "logistics"
-database_id = "REPLACE_AFTER_wrangler_d1_create"
+database_name = "spaceship-intel-db"
+database_id = "dc95c5f2-8b04-4704-9c22-f04dad48d49a"
 
 # OPENROUTER_API_KEY is a secret, never a var:
 #   wrangler secret put OPENROUTER_API_KEY
 [vars]
-OPENROUTER_MODEL = "anthropic/claude-sonnet-4.5"
+OPENROUTER_MODEL = "google/gemini-3.8-flash"

@@ -21,7 +21,7 @@ npm test                # 64 tests, no API key needed
 Run it locally — two processes, because the Worker serves the API and Vite serves the SPA with hot reload:
 
 ```bash
-npx wrangler d1 execute logistics --local --file=db/schema.sql
+npm run db:schema:local
 npm run db:preview                       # seeds the local D1
 npx wrangler dev --local --port 8787     # terminal 1
 npm run dev                              # terminal 2, proxies /api to 8787
@@ -57,10 +57,10 @@ npx wrangler login
 
 # 2. Create the database, then paste the printed id into wrangler.toml
 #    over REPLACE_AFTER_wrangler_d1_create
-npx wrangler d1 create logistics
+npx wrangler d1 create spaceship-intel-db
 
 # 3. Create the schema and load the 400 rows
-npx wrangler d1 execute logistics --remote --file=db/schema.sql
+npm run db:schema:remote
 npm run db:remote
 
 # 4. Store the planner key as a secret — never a var, never in the repo

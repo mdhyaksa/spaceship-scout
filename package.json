@@ -10,10 +10,12 @@
     "test": "npm run build:layer && vitest run",
     "test:watch": "vitest",
     "db:local": "tsx db/seed.ts",
-    "db:remote": "npm run db:sql && wrangler d1 execute logistics --remote --file=db/seed.sql",
+    "db:remote": "npm run db:sql && wrangler d1 execute spaceship-intel-db --remote --file=db/seed.sql",
     "deploy": "npm run build && wrangler deploy",
     "db:sql": "tsx db/seed.ts --emit-sql > db/seed.sql",
-    "db:preview": "npm run db:sql && wrangler d1 execute logistics --local --file=db/seed.sql"
+    "db:preview": "npm run db:sql && wrangler d1 execute spaceship-intel-db --local --file=db/seed.sql",
+    "db:schema:remote": "wrangler d1 execute spaceship-intel-db --remote --file=db/schema.sql",
+    "db:schema:local": "wrangler d1 execute spaceship-intel-db --local --file=db/schema.sql"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -22,7 +24,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250109.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@types/better-sqlite3": "^7.6.12",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -32,7 +34,7 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vitest": "^2.1.8",
-    "wrangler": "^3.99.0",
+    "wrangler": "^4.86.0",
     "yaml": "^2.6.1"
   }
 }

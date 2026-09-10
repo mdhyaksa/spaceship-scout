@@ -5,3 +5,4 @@ dist/
 .dev.vars
 db/local.sqlite
 db/seed.sql
+.env
