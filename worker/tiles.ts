@@ -40,14 +40,15 @@ export const CARDS: TileDef[] = [
     contextMetric: 'units_ordered',
   },
   {
-    id: 'card_delivered',
-    title: 'Delivered orders',
+    id: 'card_completed',
+    title: 'Completed orders',
     kind: 'card',
     ir: (filters) => emptyIR({
-      intent: 'scalar', metrics: ['on_time_count', 'completed_count'], filters,
-      interpretation: 'Orders that reached a final delivered status, on time.',
+      intent: 'scalar', metrics: ['completed_count', 'on_time_count'], filters,
+      interpretation: 'Orders that reached a final delivery outcome, and how many of those were on time.',
     }),
-    contextMetric: 'completed_count',
+    contextMetric: 'on_time_count',
+    note: 'Delivered, delayed and exception orders all carry a delivery date — a delayed order arrived, just late. Excludes the 27 in transit and 3 canceled, which have no delivery date.',
   },
   {
     id: 'card_delayed',

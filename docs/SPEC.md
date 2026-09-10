@@ -101,7 +101,7 @@ Each card is **bound to a semantic-layer metric id**, not to hand-written tile S
 | Card | Metric id | Value (all data) | Note shown on the card |
 |---|---|---|---|
 | Total Orders | `order_count` | 400 | — |
-| Delivered Orders | `on_time_count` | 304 | — |
+| Completed Orders | `completed_count` | 370 | Delivered, delayed and exception all carry a delivery date; on-time count (304) shown as context |
 | Delayed Orders | `delayed_count` | 55 | Share is of 370 completed deliveries, not of 304 delivered |
 | On-time Delivery Rate | `on_time_rate` | 82.2% | — |
 | Average Delivery Time | `avg_transit_days` | 3.83 d | Excludes 30 orders with no delivery date (27 in transit, 3 canceled) |

@@ -15,7 +15,10 @@ export interface CardMeta {
 
 export const CARDS: CardMeta[] = [
   { id: 'card_total_orders', title: 'Total orders', metric: 'order_count', contextMetric: 'units_ordered' },
-  { id: 'card_delivered', title: 'Delivered orders', metric: 'on_time_count', contextMetric: 'completed_count' },
+  {
+    id: 'card_completed', title: 'Completed orders', metric: 'completed_count', contextMetric: 'on_time_count',
+    note: 'Orders that reached a final delivery outcome — delivered, delayed or exception. All three carry a delivery date; delayed orders arrived, just late. Excludes 27 in transit and 3 canceled.',
+  },
   {
     id: 'card_delayed', title: 'Delayed orders', metric: 'delayed_count', contextMetric: 'delay_rate',
     note: 'Share is of completed deliveries, not of delivered orders — delayed and delivered are mutually exclusive statuses.',
