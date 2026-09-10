@@ -146,11 +146,11 @@ Pure SQL handles it. Percentile metrics compile to a `CUME_DIST()` CTE joined ba
 | `CAST(… AS REAL) / NULLIF(…, 0)` | 14.9% delay rate, matching the CSV |
 | `julianday(a) − julianday(b)` | 3.83 d mean transit |
 | `strftime('%Y-%m', …)` | Month grain |
-| `CUME_DIST` as `PERCENTILE_DISC` | p90 6 d, p95 8 d, identical to an independent derivation, and correct under a two-dimension `PARTITION BY` |
+| `CUME_DIST` as `PERCENTILE_DISC` | p95 8 d, identical to an independent derivation, and correct under a two-dimension `PARTITION BY` |
 
 Two points worth recording.
 
-**The semantic layer declares `percentile_disc`, not `percentile_cont`.** Discrete rather than interpolated, and this is the better definition on its own merits. On this dataset the 90th-percentile order took **6 days** — a duration some order actually had. Interpolation lands between observations and reports a figure no order took. Postgres has `PERCENTILE_DISC` natively, so one metric definition produces identical numbers on both engines.
+**The semantic layer declares `percentile_disc`, not `percentile_cont`.** Discrete rather than interpolated, and this is the better definition on its own merits: it reports a duration some order actually had, where interpolation lands between observations and reports one no order took. On this dataset the two happen to agree — the 95th-percentile order took **8 days** either way — so the choice buys correctness on data where they diverge rather than a visible difference here. Postgres has `PERCENTILE_DISC` natively, so one metric definition produces identical numbers on both engines.
 
 **Use `CUME_DIST`, never `PERCENT_RANK`.** They look interchangeable and are not. `PERCENT_RANK` is `(rank − 1) / (n − 1)` and overshoots — measured on this dataset it disagrees with `PERCENTILE_DISC` for **4 of 9 carriers** (DHL, FedEx, UPS, USPS). `CUME_DIST` is `(rows ≤ current) / n`, which is exactly the definition `PERCENTILE_DISC` uses.
 
@@ -275,7 +275,7 @@ The separation is physical, not just conceptual. That is the argument client-sid
 | Single-model planner, one tool call | Tier-2 routing, retry-on-validator-error |
 | Sufficiency guard, per-dimension thresholds | Clarify flow with option patches |
 | Flat-distribution χ² test | Raw SQL path, trust badge, regex allowlist |
-| P90 via `CUME_DIST` CTE | Interpolated percentiles |
+| P95 via `CUME_DIST` CTE | Interpolated percentiles |
 | Four charts + the breakdown scatter | Everything else in the selection table |
 | SES + linear trend + moving average, backtested | Holt, seasonality |
 | Explain panel: IR, SQL, filters, anchor, warnings | Embeddings, clustering, gap taxonomy |
@@ -321,7 +321,7 @@ of the five breakdown dimensions are honestly flat rather than leaderboards.
 ## 10. Honest limitations to state during the demo
 
 - The raw-SQL escape hatch is not built. Every answer therefore comes through the semantic layer and is verified, and a question the layer cannot express clarifies rather than falling back to generated SQL. The guards, the trust marking and the pin restriction are specified (`Natural_language_query_spec.md` §7) and the trust field ships, so the path can land without retrofitting the surface around it.
-- P90 is a discrete percentile rather than interpolated. Deliberate: it reports a transit time some order actually had, and it is identical on SQLite and Postgres.
+- P95 is a discrete percentile rather than interpolated. Deliberate: it reports a transit time some order actually had, and it is identical on SQLite and Postgres.
 - The forecast runs on 12 monthly points. Every projection shows a wide confidence band, and that is the correct output rather than a defect.
 - The coverage loop logs and ranks but does not cluster. Clustering is specified and deliberately deferred.
 - Dashboard tiles are not written to the query log. They are fixed plans rather than questions, and logging them would bury the fall-throughs the coverage page exists to surface.

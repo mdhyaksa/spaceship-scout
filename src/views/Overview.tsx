@@ -84,7 +84,7 @@ export function Overview({
       share: totalVolume ? Number(r['order_count'] ?? 0) / totalVolume : 0,
       rate: Number(r['on_time_rate'] ?? 0),
       transit: Number(r['avg_transit_days'] ?? 0),
-      p90: Number(r['p90_transit_days'] ?? 0),
+      p95: Number(r['p95_transit_days'] ?? 0),
       n: Number(r['completed_count'] ?? 0),
     }))
     // A group with no key cannot be labelled, identified in a tooltip, or

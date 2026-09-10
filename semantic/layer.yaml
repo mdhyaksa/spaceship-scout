@@ -68,8 +68,11 @@ parameters:
     sku: null              # never a valid reporting grain on this dataset
 
   # Where the transit-time distribution stops being routine and starts
-  # generating complaints. p95 of completed transit; 21 orders sit at or above
-  # it. Recompute on real data, do not inherit 8.
+  # generating complaints, and the single definition of "the tail". Set to the
+  # p95 of completed transit, so it agrees with metric.p95_transit_days on
+  # unfiltered data; under a filter the metric follows what is displayed while
+  # this stays the configured boundary. 21 orders sit at or above it.
+  # On real data this becomes the SLA. Do not inherit 8.
   tail_threshold_days: 8
 
   # Below this, a breakdown is reported as within normal variation rather than
@@ -203,17 +206,19 @@ metrics:
       orders have no delivery_date (27 in transit, 3 canceled) and are excluded
       from the denominator. Shown on the KPI card, not only in the panel.
 
-  p90_transit_days:
-    label: 90th percentile transit days
+  p95_transit_days:
+    label: 95th percentile transit days
     agg: percentile_disc
-    percentile: 0.90
+    percentile: 0.95
     expr: date_diff(delivery_date, order_date)
     filter: delivery_date IS NOT NULL
     format: days_1dp
     notes: >
       Discrete, not interpolated: it reports a transit time some order actually
-      had. p90 is the number a service target is set against - the mean sits
-      inside the body of the distribution and says nothing about the tail.
+      had. p95 is the number a service target is set against, and it is the
+      same boundary tail_threshold_days marks on the distribution chart - one
+      definition of the tail, not two. The mean sits inside the body and says
+      nothing about it.
 
   max_transit_days:
     label: Slowest delivery
@@ -411,7 +416,7 @@ glossary:
       and destination region resolve to the same value; the answer says so.
   - terms: [transit time, delivery time, how long, speed, lead time]
     maps_to: metric.avg_transit_days
-    note: Offer p90_transit_days alongside it. The mean hides the tail.
+    note: Offer p95_transit_days alongside it. The mean hides the tail.
   - terms: [problem orders, issues, failures]
     maps_to: metric.exception_count
     note: Ambiguous. Prefer clarify between exceptions, delays and cancellations.

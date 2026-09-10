@@ -39,7 +39,7 @@ describe('compiler', () => {
   });
 
   it('uses CUME_DIST for percentiles and never PERCENT_RANK', () => {
-    const { sql } = compile(emptyIR({ metrics: ['p90_transit_days'], dimensions: ['lane'] }), layer);
+    const { sql } = compile(emptyIR({ metrics: ['p95_transit_days'], dimensions: ['lane'] }), layer);
     expect(sql).toContain('CUME_DIST() OVER');
     expect(sql).toContain('cd >= 0.9');
     // PERCENT_RANK is (rank - 1) / (n - 1) and overshoots: it disagrees with
@@ -50,7 +50,7 @@ describe('compiler', () => {
   it('partitions the percentile window by alias, not by source expression', () => {
     // The subquery projects aliases only. A dimension whose alias equals its
     // column would work either way; lane is origin_city || ' -> ' || dest.
-    const { sql } = compile(emptyIR({ metrics: ['p90_transit_days'], dimensions: ['lane'] }), layer);
+    const { sql } = compile(emptyIR({ metrics: ['p95_transit_days'], dimensions: ['lane'] }), layer);
     expect(sql).toContain('PARTITION BY lane');
   });
 

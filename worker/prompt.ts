@@ -169,9 +169,9 @@ export function fewShots(): { question: string; plan: Record<string, unknown> }[
     },
     {
       question: 'How slow is our worst lane?',
-      plan: { ...base, intent: 'aggregate', metrics: ['avg_transit_days', 'p90_transit_days'], dimensions: ['lane'],
+      plan: { ...base, intent: 'aggregate', metrics: ['avg_transit_days', 'p95_transit_days'], dimensions: ['lane'],
         sort: [{ by: 'avg_transit_days', dir: 'desc' }], limit: 20, confidence: 0.8,
-        interpretation: 'Lanes ranked by average transit days, with the 90th percentile alongside.' },
+        interpretation: 'Lanes ranked by average transit days, with the 95th percentile alongside.' },
     },
   ];
 }

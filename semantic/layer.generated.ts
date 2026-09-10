@@ -163,14 +163,14 @@ export const layer: Layer = {
       "format": "days_1dp",
       "notes": "Order date to delivery date. Only completed orders contribute: 30 of 400 orders have no delivery_date (27 in transit, 3 canceled) and are excluded from the denominator. Shown on the KPI card, not only in the panel.\n"
     },
-    "p90_transit_days": {
-      "label": "90th percentile transit days",
+    "p95_transit_days": {
+      "label": "95th percentile transit days",
       "agg": "percentile_disc",
-      "percentile": 0.9,
+      "percentile": 0.95,
       "expr": "date_diff(delivery_date, order_date)",
       "filter": "delivery_date IS NOT NULL",
       "format": "days_1dp",
-      "notes": "Discrete, not interpolated: it reports a transit time some order actually had. p90 is the number a service target is set against - the mean sits inside the body of the distribution and says nothing about the tail.\n"
+      "notes": "Discrete, not interpolated: it reports a transit time some order actually had. p95 is the number a service target is set against, and it is the same boundary tail_threshold_days marks on the distribution chart - one definition of the tail, not two. The mean sits inside the body and says nothing about it.\n"
     },
     "max_transit_days": {
       "label": "Slowest delivery",
@@ -450,7 +450,7 @@ export const layer: Layer = {
         "lead time"
       ],
       "maps_to": "metric.avg_transit_days",
-      "note": "Offer p90_transit_days alongside it. The mean hides the tail."
+      "note": "Offer p95_transit_days alongside it. The mean hides the tail."
     },
     {
       "terms": [

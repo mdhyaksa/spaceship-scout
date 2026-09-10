@@ -9,10 +9,16 @@ const PAD = { top: px(16), right: px(10), bottom: px(38), left: px(38) };
  * Transit-time distribution.
  *
  * The tail is the subject. The body renders in graphite-300 and everything at
- * or beyond the tail threshold in ink, and both the mean and the p90 are drawn
+ * or beyond the tail threshold in ink, and both the mean and the p95 are drawn
  * as reference lines — carrying both is the point. The mean sits inside the
- * body and says nothing about the orders that generate complaints; p90 is the
+ * body and says nothing about the orders that generate complaints; p95 is the
  * number a service target can actually be set against.
+ *
+ * p95 is the same boundary the shading uses, so the chart states one
+ * definition of the tail rather than two. The two can still separate: the
+ * shading follows the configured tail_threshold_days while the line follows
+ * the p95 of whatever is currently displayed, so under a filter the line
+ * shows where this subset's tail begins against the configured boundary.
  *
  * Both statistics are derived from the bars themselves, so the chart cannot
  * disagree with the distribution it is drawing.
@@ -32,13 +38,13 @@ export function Histogram({
   const total = points.reduce((s, p) => s + p.count, 0) || 1;
   const mean = points.reduce((s, p) => s + p.days * p.count, 0) / total;
 
-  // Discrete p90: the smallest value whose cumulative share reaches 0.9. Same
-  // definition the semantic layer uses, so the line lands on a real bar.
+  // Discrete p95: the smallest value whose cumulative share reaches 0.95. Same
+  // definition metric.p95_transit_days uses, so the line lands on a real bar.
   let cumulative = 0;
-  let p90 = points[points.length - 1]!.days;
+  let p95 = points[points.length - 1]!.days;
   for (const p of points) {
     cumulative += p.count;
-    if (cumulative / total >= 0.9) { p90 = p.days; break; }
+    if (cumulative / total >= 0.95) { p95 = p.days; break; }
   }
   const tailCount = points.filter((p) => p.days >= tailThreshold).reduce((s, p) => s + p.count, 0);
 
@@ -57,7 +63,7 @@ export function Histogram({
   return (
     <div ref={ref}>
       <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img"
-           aria-label={`Orders by transit days. Mean ${mean.toFixed(1)}, p90 ${p90}, ${tailCount} orders at or beyond ${tailThreshold} days.`}>
+           aria-label={`Orders by transit days. Mean ${mean.toFixed(1)}, p95 ${p95}, ${tailCount} orders at or beyond ${tailThreshold} days.`}>
         {ticks.map((t) => (
           <g key={t}>
             <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--grid)" strokeWidth={0.5} />
@@ -76,20 +82,20 @@ export function Histogram({
           </g>
         ))}
 
-        {/* Reference lines: mean inside the body, p90 out where it matters. */}
+        {/* Reference lines: mean inside the body, p95 where the tail starts. */}
         <line x1={xAt(Math.round(mean))} x2={xAt(Math.round(mean))} y1={PAD.top} y2={y(0)}
               stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" opacity={0.45} />
         <text x={xAt(Math.round(mean)) + 4} y={PAD.top + px(9)} fontSize={px(10)} fill="var(--text-muted)" className="tnum">
           mean {mean.toFixed(1)}
         </text>
-        <line x1={xAt(p90)} x2={xAt(p90)} y1={PAD.top} y2={y(0)} stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" />
-        <text x={xAt(p90) + px(4)} y={PAD.top + px(22)} fontSize={px(10)} fill="var(--text-primary)" className="tnum">p90 {p90}</text>
+        <line x1={xAt(p95)} x2={xAt(p95)} y1={PAD.top} y2={y(0)} stroke="var(--role-reference)" strokeWidth={1} strokeDasharray="4 3" />
+        <text x={xAt(p95) + px(4)} y={PAD.top + px(22)} fontSize={px(10)} fill="var(--text-primary)" className="tnum">p95 {p95}</text>
 
         <text x={(width + PAD.left) / 2} y={H - px(3)} textAnchor="middle" fontSize={px(11)} fill="var(--text-muted)">Days in transit</text>
       </svg>
       <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
         <span className="tnum">{tailCount}</span> of <span className="tnum">{total}</span> orders take {tailThreshold} days or more.
-        The mean is <span className="tnum">{mean.toFixed(1)}</span> and hides that tail; p90 is <span className="tnum">{p90}</span>.
+        Mean <span className="tnum">{mean.toFixed(1)}</span> d · p95 <span className="tnum">{p95}</span> d.
       </p>
     </div>
   );

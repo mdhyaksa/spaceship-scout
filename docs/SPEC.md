@@ -49,7 +49,7 @@ Measured from `mock_logistics_data.csv`, not copied from any spec. `scripts/veri
 | Status counts | delivered 304 · delayed 55 · exception 11 · in_transit 27 · canceled 3 |
 | Completed deliveries | 370 (delivered + delayed + exception) |
 | Headline KPIs | on-time 82.2% · delay rate 14.9% · avg transit 3.83 d |
-| Transit distribution | p50 4 d · p90 6 d · p95 8 d · max 12 d · 21 orders at 8 d or more |
+| Transit distribution | p50 4 d · **p95 8 d** · max 12 d · 21 orders at 8 d or more |
 | Missing `delivery_date` | 30 rows (27 in transit, 3 canceled) |
 | Cardinality | 9 carriers · 9 origin cities · 9 warehouses (1:1 with origin) · 5 regions · 47 destination cities · 47 lanes · 8 categories · 30 clients · 355 SKUs |
 | Lane identity | 0 of 47 destinations are served by more than one origin, so a lane and a destination city are the same partition |
@@ -117,7 +117,9 @@ Cached, each with a refresh control (refresh icon).
 3. **Status composition** — all five statuses, count and percentage of total.
    **Caveat required.** `in_transit_count` and `canceled_count` are declared `point_in_time: false`. The 27 in-transit orders are spread evenly across all twelve months and carry no capture timestamp, so this tile is an **untimed total only**: it must not be trended or grouped by a time grain, and it must display the caveat whenever a date filter is active.
 4. **Delivery-days distribution** — order count by transit days.
-   The tail is the story. Mean transit is 3.83 d, p90 is 6 d, and the slowest order took 12 d — the mean hides exactly the orders that generate complaints, so **p90 is the number to manage against, not the average**. The chart carries both as reference lines and renders the tail beyond `tail_threshold_days` (8 d, the p95, 21 orders) in `ink` per `docs/DESIGN.md` §5.
+   The tail is the story. Mean transit is 3.83 d, p95 is 8 d, and the slowest order took 12 d — the mean hides exactly the orders that generate complaints, so **p95 is the number to manage against, not the average**. The chart carries both as reference lines and renders the tail at or beyond `tail_threshold_days` (8 d, 21 orders) in `ink` per `docs/DESIGN.md` §5.
+
+   **One definition of the tail.** p95 and `tail_threshold_days` are the same boundary: the threshold is set to the p95 of completed transit, so the reference line lands where the shading changes. Earlier drafts drew a p90 line beside a p95 shading, which asked the reader to hold two answers to the same question.
 5. **Breakdown scatter** — see §6.3.
 
 Four charts, not five. A separate on-time-rate-by-carrier bar was in the earlier draft and is gone: the scatter's carrier dimension shows the same rate against volume and sample size, which is strictly more useful. The brief's minimum — order volume over time, delivery performance, and a carrier or destination breakdown — is met by charts 2, 1 and 5 respectively.
@@ -133,7 +135,7 @@ Specified in `docs/DESIGN.md` §6.1. It replaces the separate carrier and lane s
 | Share of volume | x position |
 | On-time rate | y position, read against the target line |
 | Avg transit days | point fill darkness, graphite ramp |
-| P90 transit | tooltip only |
+| P95 transit | tooltip only |
 
 Switchable dimensions: **carrier · region · warehouse · product category · lane · client**. The priority quadrant — high volume, below target — is shaded bottom-right, with both bounds computed from the active filters rather than hardcoded.
 
@@ -341,5 +343,5 @@ Stated here so the README derives from the spec rather than being written twice.
 - **No customer master data** — only `client_id`
 - **Most breakdowns are not statistically distinguishable.** Only carrier is even borderline (χ² p = 0.053); region, category, warehouse and promo all land above 0.65. The sufficiency guard enforces this rather than letting a leaderboard imply signal that is not there
 - **No raw-SQL fallback.** A question the semantic layer cannot express clarifies rather than falling through to generated SQL, so the coverage page shows clarify and refusal classes only (§10)
-- **P90 is discrete, not interpolated.** It reports a transit time some order actually had, and it is identical on SQLite and Postgres
+- **P95 is discrete, not interpolated.** It reports a transit time some order actually had, and it is identical on SQLite and Postgres
 - **Dashboard tiles are not written to the query log.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface

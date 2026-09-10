@@ -11,7 +11,7 @@ export interface ScatterPoint {
   share: number;        // x — share of total volume
   rate: number;         // y — on-time rate
   transit: number;      // fill darkness
-  p90: number;          // tooltip only
+  p95: number;          // tooltip only
   n: number;            // completed deliveries, decides hollow vs filled
 }
 
@@ -20,7 +20,7 @@ export interface ScatterPoint {
  *
  * Each metric is matched to how precisely it needs to be read: volume and rate
  * take the two position channels, transit takes fill darkness because "slower
- * than others" is all it has to say, and p90 is a lookup so it lives in the
+ * than others" is all it has to say, and p95 is a lookup so it lives in the
  * tooltip.
  *
  * Size is deliberately not an encoding. Points are a fixed radius: size reads
@@ -216,7 +216,7 @@ export function BreakdownScatter({
               <title>
                 {`${p.key}\non-time ${formatValue(p.rate, 'percent')} of ${p.n} completed\n` +
                  `share of volume ${(p.share * 100).toFixed(1)}%\n` +
-                 `avg transit ${p.transit.toFixed(1)} d · p90 ${p.p90} d` +
+                 `avg transit ${p.transit.toFixed(1)} d · p95 ${p.p95} d` +
                  (thin ? `\nbelow the minimum sample of ${minGroupSize}` : '')}
               </title>
             </circle>

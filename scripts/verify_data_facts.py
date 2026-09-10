@@ -107,8 +107,7 @@ def main():
     check("delay rate %", round(100 * status["delayed"] / len(completed), 1), 14.9)
     check("avg transit days", round(statistics.mean(days), 2), 3.83)
     check("p50 transit days", percentile(days, 0.50), 4.0)
-    check("p90 transit days", percentile(days, 0.90), 6.0)
-    check("p95 transit days (tail_threshold_days)", percentile(days, 0.95), 8.0)
+    check("p95 transit days (= tail_threshold_days)", percentile(days, 0.95), 8.0)
     check("max transit days", max(days), 12)
     check("orders at/above tail threshold", sum(1 for d in days if d >= 8), 21)
 

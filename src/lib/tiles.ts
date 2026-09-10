@@ -25,7 +25,7 @@ export const CARDS: CardMeta[] = [
   },
   { id: 'card_on_time_rate', title: 'On-time delivery rate', metric: 'on_time_rate', contextMetric: 'completed_count' },
   {
-    id: 'card_avg_transit', title: 'Average delivery time', metric: 'avg_transit_days', contextMetric: 'p90_transit_days',
+    id: 'card_avg_transit', title: 'Average delivery time', metric: 'avg_transit_days', contextMetric: 'p95_transit_days',
     note: 'Excludes 30 orders with no delivery date (27 in transit, 3 canceled).',
   },
 ];
@@ -43,10 +43,7 @@ export const CHARTS: ChartMeta[] = [
     note: 'In-transit and canceled counts have no capture timestamp, so this is an untimed total and must not be trended.',
   },
   { id: 'chart_volume', title: 'Order volume', subtitle: 'Monthly' },
-  {
-    id: 'chart_transit', title: 'Transit time', subtitle: 'Orders by days in transit',
-    note: 'The tail is the story: the mean sits inside the body of the distribution and says nothing about the orders that generate complaints.',
-  },
+  { id: 'chart_transit', title: 'Transit time', subtitle: 'Orders by days in transit' },
   { id: 'chart_breakdown', title: 'Breakdown', subtitle: 'Volume against on-time rate' },
 ];
 

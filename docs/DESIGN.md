@@ -162,7 +162,11 @@ Where on-time is compared against delayed as two lines, use direct end-of-line l
 
 **Distribution charts.** Where the tail is the story — transit time is the case here — render the body in `graphite-300` and the tail at or beyond `tail_threshold_days` in `ink`. The threshold is a semantic-layer parameter (`Natural_language_query_spec.md` §3.2), set to 8 days: the p95 of completed transit, above which sit 21 orders spanning 8 to 12 days. The eye should land on those, not on the mode at 4 days.
 
-Two `reference` lines, both labelled inline: the **mean** (3.83 days) and the **p90** (6 days). Carrying both is the point of the chart — the mean sits inside the body and says nothing about the orders that generate complaints, while p90 is the number a service target can actually be set against. A distribution chart that shows only its average has hidden its own subject.
+Two `reference` lines, both labelled inline: the **mean** (3.83 days) and the **p95** (8 days). Carrying both is the point of the chart — the mean sits inside the body and says nothing about the orders that generate complaints, while p95 is the number a service target can actually be set against. A distribution chart that shows only its average has hidden its own subject.
+
+p95 is deliberately the same boundary the shading uses, so the chart offers one definition of the tail rather than two. The two can still separate, and usefully: the shading follows the configured `tail_threshold_days` while the line follows the p95 of whatever is currently displayed, so under a filter the line shows where that subset's tail begins relative to the configured boundary.
+
+**Keep the reasoning out of the tile.** Why the tail matters belongs in this document and in the README. The chart states its figures — how many orders are in the tail, the mean, the p95 — and lets the colour do the arguing.
 
 **Reference lines.** `reference`, 1px, dashed `4 3`, inline right-aligned label. Used for SLA thresholds and the all-groups average in any comparison chart.
 
@@ -187,7 +191,7 @@ Replaces the separate carrier and lane scorecards. One component, one switchable
 | Share of volume | x position | Wide numeric spread (2% to 23% for carriers); position is the most accurately read channel |
 | On-time rate | y position | The decision metric, read against a target line |
 | Avg transit days | Point fill darkness, graphite ramp | Diagnostic. "Slower than others" is enough; the range is only 3.4–5.1 days, too narrow for size to resolve |
-| P90 transit | Tooltip only | A lookup value, not a comparison |
+| P95 transit | Tooltip only | A lookup value, not a comparison |
 
 **Size is not an encoding.** Points are a fixed radius. Size reads as importance, and volume already holds that meaning on the x-axis — a large point would say "this matters" while meaning "this is slow." Two channels claiming the same intuition is worse than leaving one unused.
 
@@ -303,5 +307,6 @@ Two weights only, 400 and 500. Tabular figures on every number in a table or axi
 - Does the tooltip show `n` for every ratio metric?
 - On a scatter, is the priority quadrant below the target line rather than above it?
 - Does the scatter state how many groups clear the sample floor?
-- Does the distribution chart show p90 as well as the mean?
+- Does the distribution chart show p95 as well as the mean?
+- Is the tail defined once — the p95 line landing where the shading changes?
 - Is every table ranked by a problem rather than by recency?

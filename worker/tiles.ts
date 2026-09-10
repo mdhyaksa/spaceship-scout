@@ -76,10 +76,10 @@ export const CARDS: TileDef[] = [
     title: 'Average delivery time',
     kind: 'card',
     ir: (filters) => emptyIR({
-      intent: 'scalar', metrics: ['avg_transit_days', 'p90_transit_days'], filters,
-      interpretation: 'Mean days from order to delivery, with the 90th percentile alongside.',
+      intent: 'scalar', metrics: ['avg_transit_days', 'p95_transit_days'], filters,
+      interpretation: 'Mean days from order to delivery, with the 95th percentile alongside.',
     }),
-    contextMetric: 'p90_transit_days',
+    contextMetric: 'p95_transit_days',
     note: 'Excludes 30 orders with no delivery date (27 in transit, 3 canceled).',
   },
 ];
@@ -123,7 +123,6 @@ export const CHARTS: TileDef[] = [
       sort: [{ by: 'transit_days', dir: 'asc' }], limit: 60,
       interpretation: 'Distribution of completed deliveries by transit days.',
     }),
-    note: 'The tail is the story: the mean sits inside the body of the distribution and says nothing about the orders that generate complaints.',
   },
   {
     id: 'chart_breakdown',
@@ -143,7 +142,7 @@ export const BREAKDOWN_DIMENSIONS = ['carrier', 'region', 'warehouse', 'product_
 
 export function breakdownIR(dimension: string, filters: Filter[]): QueryIR {
   return emptyIR({
-    metrics: ['on_time_rate', 'order_count', 'avg_transit_days', 'p90_transit_days'],
+    metrics: ['on_time_rate', 'order_count', 'avg_transit_days', 'p95_transit_days'],
     dimensions: [dimension],
     filters,
     sort: [{ by: 'order_count', dir: 'desc' }],

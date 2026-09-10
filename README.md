@@ -191,6 +191,18 @@ That last one is why the **sufficiency guard** is the part of this system worth 
 
 A leader may only be named if it clears three guards: the omnibus χ² rejects flatness, the leader's own sample reaches its dimension's floor, and a two-proportion test separates it from the rest. Requiring the omnibus test first is not optional — the maximum of 47 lanes passes a pairwise test on noise alone, and a lane at 2 of 2 delayed beats the pooled rate at p = 0.03 while telling you nothing.
 
+### Why the transit chart shades a tail
+
+Mean transit is 3.83 days. Reported alone that says deliveries take under four days — true, and useless for the 21 orders that took eight to twelve. Those are the ones that generate complaints, and an average is structurally incapable of showing them: the mean sits inside the body of the distribution and says nothing about its tail.
+
+So the transit-time chart renders the body in grey and the tail in ink, and carries **p95 (8 days)** as a reference line beside the mean. p95 is the number a service target can be set against; the mean is context.
+
+The tail has exactly one definition. `tail_threshold_days` — the shading boundary — is set to the p95 of completed transit, so the reference line lands where the colour changes. An earlier version drew a p90 line beside p95 shading, which asked the reader to hold two answers to the same question.
+
+Two caveats. The threshold is **data-derived, not contractual**: this dataset carries no promised delivery date, so eight days is where this distribution's tail begins, not a breach of anything. On real data that parameter should become the SLA and stop tracking the p95. And the shading is `>= 8`, so the eight-day bucket reads as tail rather than body.
+
+This reasoning lives here rather than on the dashboard. The chart states its figures and lets the colour do the arguing.
+
 ---
 
 ## Assumptions
@@ -208,7 +220,7 @@ A leader may only be named if it clears three guards: the omnibus χ² rejects f
 - **Every forecast is low-confidence.** All series have 12 monthly points, below the 24-observation threshold. The interval is the answer; the line is indicative.
 - **No cost, margin or freight columns**, no customer master data. Those questions are refused, not estimated.
 - **No raw-SQL fallback.** A question the layer cannot express clarifies rather than falling through to generated SQL. The guards and trust marking for that path are specified but not built.
-- **P90 is discrete, not interpolated** — it reports a transit time some order actually had, and is identical on SQLite and Postgres.
+- **P95 is discrete, not interpolated** — it reports a transit time some order actually had, and is identical on SQLite and Postgres.
 - **Dashboard tiles are not logged.** They are fixed plans rather than questions; logging them would bury the fall-throughs the coverage page exists to surface.
 - **Sample sizes are thin almost everywhere.** 5 of 9 carriers, 25 of 30 clients and 37 of 47 lanes fall below their floor. The UI states the coverage rather than quietly muting them.
 

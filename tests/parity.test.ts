@@ -132,9 +132,9 @@ describe('SQL agrees with the CSV — scalars', () => {
     const transits = orders.map((o) => o.transit).filter((t): t is number => t !== null);
     expect(orders.length - transits.length).toBe(30);
 
-    const [row] = await run(emptyIR({ metrics: ['avg_transit_days', 'p90_transit_days', 'max_transit_days'] }));
+    const [row] = await run(emptyIR({ metrics: ['avg_transit_days', 'p95_transit_days', 'max_transit_days'] }));
     expect(Number(row!['avg_transit_days'])).toBeCloseTo(transits.reduce((a, b) => a + b, 0) / transits.length, 10);
-    expect(Number(row!['p90_transit_days'])).toBe(percentileDisc(transits, 0.9));
+    expect(Number(row!['p95_transit_days'])).toBe(percentileDisc(transits, 0.95));
     expect(Number(row!['max_transit_days'])).toBe(Math.max(...transits));
   });
 
@@ -198,14 +198,14 @@ describe('SQL agrees with the CSV — breakdowns', () => {
   });
 
   it.each(dimensions)('matches the percentile CTE by %s', async (dimension, key) => {
-    const rows = await run(emptyIR({ metrics: ['p90_transit_days', 'avg_transit_days'], dimensions: [dimension], limit: 100 }));
+    const rows = await run(emptyIR({ metrics: ['p95_transit_days', 'avg_transit_days'], dimensions: [dimension], limit: 100 }));
     for (const row of rows) {
       const transits = orders
         .filter((o) => key(o) === String(row[dimension]))
         .map((o) => o.transit)
         .filter((t): t is number => t !== null);
       if (!transits.length) continue;
-      expect(Number(row['p90_transit_days']), `${dimension}=${row[dimension]} p90`).toBe(percentileDisc(transits, 0.9));
+      expect(Number(row['p95_transit_days']), `${dimension}=${row[dimension]} p95`).toBe(percentileDisc(transits, 0.95));
       expect(Number(row['avg_transit_days']), `${dimension}=${row[dimension]} mean`)
         .toBeCloseTo(transits.reduce((a, b) => a + b, 0) / transits.length, 10);
     }

@@ -3,7 +3,7 @@
 **Version:** 0.3
 **Dataset:** `mock_logistics_data.csv` — 400 rows, 17 columns, order grain, calendar year 2025
 **Companions:** `docs/SPEC.md` (product scope, built/deferred split) · `docs/DESIGN.md` (visual system)
-**Changes from 0.3:** `p90_transit_days` declares `percentile_disc`; §6.1 gains a dialect section (SQLite today, Postgres later); tier-2 routing and the planner retry are deferred; Holt leaves the forecast candidate set; the raw-SQL path is deferred with the trust field still shipping.
+**Changes from 0.3:** the percentile metric is `p95_transit_days`, declaring `percentile_disc` and matching `tail_threshold_days` so the tail has one definition; §6.1 gains a dialect section (SQLite today, Postgres later); tier-2 routing and the planner retry are deferred; Holt leaves the forecast candidate set; the raw-SQL path is deferred with the trust field still shipping.
 **Changes from 0.2:** every claim re-checked against the CSV. `origin_region` becomes `region` — all 47 lanes are intra-region, so destination region is derivable and no longer `unanswerable`; `destination_city` collapses into `lane`; `tail_threshold_days` added; the sparse-series and promo-χ² claims corrected; cross-references use real filenames.
 
 ---
@@ -318,10 +318,10 @@ metrics:
       orders have no delivery_date (27 in transit, 3 canceled) and are excluded
       from the denominator. Surfaced on the KPI card, not just in the panel.
 
-  p90_transit_days:
-    label: 90th percentile transit days
+  p95_transit_days:
+    label: 95th percentile transit days
     agg: percentile_disc
-    percentile: 0.90
+    percentile: 0.95
     expr: (fct_orders.delivery_date - fct_orders.order_date)
     filter: fct_orders.delivery_date IS NOT NULL
     format: days_1dp
