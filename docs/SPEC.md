@@ -160,6 +160,7 @@ These are two different sets and the spec keeps them apart. A field being filter
 - **`destination_city` is filterable but not separately groupable.** Every destination is served by exactly one origin, so grouping by it produces the same 47 groups as `lane`. Shipping both would put two chips in the UI that draw the same chart. It and `origin_city` are declared `groupable: false` in the layer, and the validator enforces it (`not_groupable`).
 - **`region` is one dimension, covering origin and destination.** All 47 lanes are intra-region, so there is no origin/destination distinction to make on this data.
 - **`origin_city` is 1:1 with `warehouse`.** Group by warehouse; filter by either.
+- **Chip values** come from the layer where it declares them, and from the data where it does not (`docs/decisions/ADR-002-dimension-values-from-the-data.md`). The declaration has to win where it exists, because the validator rejects filter values outside it.
 
 ### 6.5 Sample-size coverage
 
@@ -254,12 +255,14 @@ Every answer **and every dashboard tile** exposes how it was computed. The respo
 | Filters used | The IR's filters, plus the resolved absolute date range and the `data_as_of` anchor (§3.1) |
 | Metrics and dimensions | Semantic-layer labels, definitions and `notes` — e.g. the delayed/completed denominator, gross vs net revenue |
 | Query plan | The IR itself, rendered as the structured interpretation |
-| Access to underlying data | The result rows as a table, plus the compiled SQL |
+| Access to underlying data | The result rows as a table, plus the compiled SQL (chart tiles and chat answers) |
 
 Two things extend beyond the brief's minimum, because they are what make the panel worth opening:
 
 - **Warnings are part of the answer, not a footnote.** Sufficiency results (`docs/Natural_language_query_spec.md` §9.1) — small groups, an unreliable ranking, a flat distribution — constrain what the answer text is allowed to claim, and they render on dashboard tiles exactly as they do on chat answers.
-- **KPI cards get the same treatment as charts.** A card is a one-cell query; it shows its metric definition, its filters and its rows on demand.
+- **KPI cards explain themselves too**, in a compact form. A card is a one-cell query, so its underlying data is the number already on its face; it shows the metric definition, the filters and the period rather than an IR and a SQL string. Someone clicking Explain on "82.2%" is asking what it is a share of.
+
+Both open in a floating bubble rather than expanding in place — see `docs/decisions/ADR-001-explain-as-a-floating-bubble.md`.
 
 ---
 

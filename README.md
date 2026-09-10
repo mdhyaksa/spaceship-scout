@@ -245,3 +245,4 @@ npm test
 | `docs/Natural_language_query_spec.md` | Semantic layer, IR, planner contract, compiler, sufficiency guard, coverage loop |
 | `docs/DESIGN.md` | Colour roles, chart furniture, the breakdown scatter, data-quality states |
 | `docs/tech-stack.md` | Why Cloudflare and D1, what it costs, and the production stack |
+| `docs/decisions/` | ADRs — the reasoning behind decisions that would be expensive to reverse |
