@@ -1,4 +1,4 @@
-# Manifest — logistics analytics with natural language query
+# Space Scout — logistics analytics with natural language query
 
 A logistics analytics dashboard that answers questions from data rather than from a model. Charts and KPI cards on one side, a natural-language interface on the other, demand forecasting with an inventory recommendation, and an explainability panel behind every number on both surfaces.
 
@@ -46,8 +46,9 @@ The dashboard, forecasts, breakdown scatter and every explainability panel work 
 | `npm run setup` | Local D1 schema + 400 rows. Run once |
 | `npm run dev:api` | Worker on :8787 |
 | `npm run dev` | SPA on :5173 |
-| `npm test` | 64 tests. Seeds `db/local.sqlite` itself if missing |
+| `npm test` | 69 tests. Seeds `db/local.sqlite` itself if missing |
 | `npm run build` | Semantic layer, typecheck, SPA bundle |
+| `npm run db:remote` | Load the 400 rows into the deployed D1 |
 | `npm run deploy` | Build then `wrangler deploy` |
 
 ### Environment variables
@@ -55,7 +56,7 @@ The dashboard, forecasts, breakdown scatter and every explainability panel work 
 | Name | Where | Purpose |
 |---|---|---|
 | `OPENROUTER_API_KEY` | Worker secret | Planner access. **Never** a `var`, never bundled into the SPA |
-| `OPENROUTER_MODEL` | `wrangler.toml` var | Defaults to `anthropic/claude-sonnet-4.5` |
+| `OPENROUTER_MODEL` | `wrangler.toml` var | Defaults to `google/gemini-3.8-flash` |
 
 Copy `.dev.vars.example` to `.dev.vars` for local runs. `.dev.vars` is gitignored, and no secret is committed.
 
@@ -144,6 +145,12 @@ Three tests in `tests/conformance.test.ts` make that verifiable rather than aspi
 
 **Charts are hand-rolled SVG.** Hollow points below a sample floor, a shaded quadrant bounded by computed thresholds, per-bar tail highlighting, inline reference labels — each is a fight with a charting library's theming layer and a few lines of raw SVG. Recharts appears once, for the forecast band, and is lazy-loaded so the overview does not pay for it.
 
+**Cloudflare and D1, not Vercel and Postgres.** A terms decision before a technical one: the Vercel Hobby plan is personal and non-commercial, and this is a commercial prototype. Cloudflare's free tier permits it and D1 needs no second vendor, so there is no connection string to store or leak. The cost is SQLite rather than Postgres, paid for by the `Database` interface and a Postgres emitter that a test already exercises. Full reasoning and the production stack: `docs/tech-stack.md`.
+
+**Forecasting is moving average, linear trend and SES — no Holt.** Twelve monthly points cannot support a trend-plus-level decomposition, let alone seasonality; fitting one would produce a confident-looking line through noise. The method is chosen per series by backtest rather than picked in advance — hold out the last `min(horizon, 4)` periods, score MAPE, refit on full history — and **every candidate's score is returned**, because showing the models that lost is what makes the winner credible. Intervals come from backtest residuals, never from the fit: a model scored on data it has already seen produces intervals that are too narrow.
+
+**Four UI decisions that changed the architecture** are recorded as ADRs in `docs/decisions/`: explain panels as floating bubbles rather than inline expansion, dimension values coming from the data where the layer does not declare them, the type scale as tokens rather than root `zoom`, and chat state living in the app shell.
+
 ### Data flow
 
 1. The question, plus the rendered catalog and glossary, goes to the planner as **one forced tool call**. The tool's JSON Schema *is* the IR schema.
@@ -163,6 +170,30 @@ One call, one tool, forced. `tool_choice` pins the model to `submit_query_plan`,
 
 The prompt carries the rules, the catalog rendered from the semantic layer, the glossary, the time-resolution table with the current anchor, and 14 few-shot examples — two of which exercise the delivered/delayed denominator trap. The catalog and glossary are injected at runtime from the versioned layer, never hand-edited into a prompt string, and `layer_version` is logged on every request as the audit trail.
 
+### Why Gemini 3.8 Flash
+
+Chosen on [Artificial Analysis](https://artificialanalysis.ai/) for a workload where **latency is the binding constraint and reasoning depth is not**.
+
+| Model | Intelligence | Speed (tok/s) | Cost per task |
+|---|---|---|---|
+| **Gemini 3.8 Flash** | **41** | **273** | **$1.24** |
+| Muse Spark 1.3 | 48 | 222 | $1.60 |
+| GPT-5.6 Luna | 38 | 110 | $0.18 |
+| Grok 4.6 (high) | 44 | 53 | $1.86 |
+| GPT-6 Astra | 53 | 54 | $3.26 |
+| Claude Opus 5 | 51 | 51 | $5.86 |
+| Claude Fable 5.1 | 53 | 67 | $7.63 |
+
+Flash is **fastest by 23%** over the next model and roughly **five times** the frontier models, at a fifth of their cost. It ranks eighth of ten on intelligence — and that is the trade being made deliberately.
+
+The planner does one thing: read a rendered catalog and emit a schema-constrained object. It does not chain steps, choose among tools, or reason about results — the `intent` enum routes, the validator checks, and every number comes from SQL. There is no task in that loop where an intelligence index of 53 does something a 41 cannot.
+
+What the user *does* feel is the wait. The planner sits between the question and the answer with nothing to show, so its latency is the whole perceived cost of the chat. `Natural_language_query_spec.md` §8.7 sets the SLI at p95 under 2.5s; at 273 tok/s a hundred-token plan is well inside it, where a 51 tok/s model is not.
+
+**Adequate is a claim to be verified, not assumed.** The golden set is the gate: hallucinated field names must be zero, and clarify precision and recall are scored per model. `OPENROUTER_MODEL` is a config var and `Planner` is an interface, so the swap is a redeploy — and conformance test 2 guarantees the answer cannot change as a result, since identical IRs produce identical results whatever wrote them.
+
+**Where the trade would show.** A weaker model should cost accuracy on ambiguous questions, so watch the clarification rate. The SLI watches it from both sides: too high wastes the user's time, and too low means the planner is guessing and returning confident wrong answers, which is the most expensive failure this system has.
+
 ### How tools are selected
 
 **The `intent` enum is the routing decision.** The planner always emits a plan; `intent` dispatches it deterministically to the query tool, the forecast tool, a clarification, or a refusal. That is the same two-tool outcome an agent loop would reach, with one fewer model decision and no chance of the model reacting to intermediate results. Routing is a single enum on a schema-constrained object, so a loop buys nothing here.
@@ -181,6 +212,8 @@ Three properties drive most of the design. Each invalidates an assumption a gene
 
 **There is no promised delivery date.** Delay is a status value, not a computed comparison, and the five statuses are mutually exclusive. So `delayed` orders are *not* inside `delivered`: a delay rate computed as `delayed / delivered` inflates the rate by excluding late orders from their own denominator. The correct denominator is completed deliveries — 370, not 304. This is exactly the class of error the semantic layer exists to prevent.
 
+The same distinction renamed a KPI card. It read "Delivered orders" and showed 304, the count of status `delivered` — but delayed and exception orders carry a delivery date too, so they were delivered, just late or messily. The card is **Completed orders, 370**, with the on-time count (304) as its context line: 370 answers "how many arrived", 304 answers "how many arrived on time", and the old card put the second number under the first question.
+
 **Open statuses have no capture timestamp.** The 27 in-transit orders are spread evenly across all twelve months, and 293 orders placed after the oldest one have already delivered. So "how many orders are in transit right now" is unanswerable rather than approximated, and in-transit counts cannot be trended.
 
 **Most breakdowns are noise.** χ² against `delayed`: carrier 0.053, region 0.945, product category 0.949, warehouse 0.983, promo 0.652. Only carrier is even borderline, and its ranking is driven by tiny samples — GLS shows 25% from 8 completed deliveries.
@@ -197,11 +230,42 @@ Mean transit is 3.83 days. Reported alone that says deliveries take under four d
 
 So the transit-time chart renders the body in grey and the tail in ink, and carries **p95 (8 days)** as a reference line beside the mean. p95 is the number a service target can be set against; the mean is context.
 
-The tail has exactly one definition. `tail_threshold_days` — the shading boundary — is set to the p95 of completed transit, so the reference line lands where the colour changes. An earlier version drew a p90 line beside p95 shading, which asked the reader to hold two answers to the same question.
+**Why p95 and not p90.** Both are defensible; running both was not. An earlier version shaded the tail at p95 (8 days) while drawing a reference line at p90 (6 days), which asked the reader to hold two answers to one question — *where does the tail start?* Consolidating on one was the decision; p95 won it on three grounds:
+
+- **It is where the distribution actually turns.** p90 is 6 days, which is still inside the body — 6-day deliveries are unremarkable here. The mass thins out at 8.
+- **It matches the shading.** `tail_threshold_days` is the p95, so the reference line lands exactly where the colour changes and the chart states one boundary rather than two.
+- **It is the more conservative promise.** A service target set at p90 is one 19 orders in 370 miss; at p95 it is one 21 orders miss but which covers 95% of customers. For a target you intend to publish, the higher percentile is the one you can defend.
+
+The cost is a coarser number on this dataset: at 370 completed deliveries, p95 rests on the top 19 observations, so it moves more per order than p90 would. On a larger dataset that concern disappears; on this one it is stated rather than hidden.
 
 Two caveats. The threshold is **data-derived, not contractual**: this dataset carries no promised delivery date, so eight days is where this distribution's tail begins, not a breach of anything. On real data that parameter should become the SLA and stop tracking the p95. And the shading is `>= 8`, so the eight-day bucket reads as tail rather than body.
 
 This reasoning lives here rather than on the dashboard. The chart states its figures and lets the colour do the arguing.
+
+### Why the breakdown is a scatter
+
+The obvious control is a bar chart of on-time rate by carrier, sorted worst first. It was rejected because it answers the wrong question: a sorted bar chart is a leaderboard, and on this data the leaderboard is noise. GLS tops it at 25% delay from **eight** deliveries.
+
+A bar chart has one positional channel, so it can show the rate but not the sample behind it — and the sample is the thing that decides whether the rate means anything. The scatter has two:
+
+| Metric | Channel | Why |
+|---|---|---|
+| Share of volume | x position | Position is the most accurately read channel, and volume is what makes a rate worth acting on |
+| On-time rate | y position | The decision metric, read against the target line |
+| Avg transit days | Fill darkness | Diagnostic. "Slower than others" is all it needs to say |
+| p95 transit | Tooltip | A lookup value, not a comparison |
+
+That geometry turns the honest answer into a *place on the chart*. A group that is both high-volume and below target sits bottom-right, which is why that quadrant is shaded and labelled — it is the only region where a difference is both real enough and large enough to act on. A bar chart cannot express "bad but too small to matter"; the scatter puts it in the far left where it belongs.
+
+**Size is deliberately not an encoding.** Points are a fixed radius. Size reads as importance, and volume already holds that meaning on the x axis; two channels claiming the same intuition is worse than leaving one unused.
+
+### Why dense dimensions hide their small groups
+
+Carrier, region, warehouse and category have five to nine groups and plot every one, hollow ones included — a hollow point keeps its true position, so a promising small carrier is still visible as promising.
+
+Lane (47) and client (30) are different. Measured, 47 lane marks produced **25 overlapping pairs**, with 37 of them below the sample floor of 10, all crammed into a 0.5–3.8% share band. Above 15 groups the chart now draws only the groups clearing their floor, says how many were withheld, and offers a toggle.
+
+The trade is real: **it hides data by default**, which is a thing to be uncomfortable about. It was chosen because the sufficiency guard already concludes those 37 rates are not reportable, and a chart that plots them anyway contradicts its own caption. The toggle and the caption are what keep it honest — nothing is unreachable, and the count of what is hidden is on screen. It never hides everything: if no group clears the floor there is nothing left to draw, so all of them show with the warning instead.
 
 ---
 
@@ -242,7 +306,7 @@ In rough order of value:
 npm test
 ```
 
-64 tests, no API key required. The ones worth knowing about:
+69 tests, no API key required. The ones worth knowing about:
 
 - **`tests/parity.test.ts`** derives every figure twice — once from the CSV in plain TypeScript, once by compiling an IR to SQL and running it — with no shared code between the two. It covers all five breakdown dimensions and the percentile CTE per group. A dropped `FILTER` clause or a ratio built on the wrong denominator fails a test rather than quietly reporting a plausible wrong number.
 - **`tests/conformance.test.ts`** is the layer separation, checked rather than claimed.
