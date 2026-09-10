@@ -4,3 +4,4 @@ dist/
 *.local
 .dev.vars
 db/local.sqlite
+db/seed.sql

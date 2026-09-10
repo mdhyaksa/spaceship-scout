@@ -10,8 +10,10 @@
     "test": "npm run build:layer && vitest run",
     "test:watch": "vitest",
     "db:local": "tsx db/seed.ts",
-    "db:remote": "wrangler d1 execute logistics --remote --file=db/schema.sql && tsx db/seed.ts --emit-sql | wrangler d1 execute logistics --remote --file=/dev/stdin",
-    "deploy": "npm run build && wrangler deploy"
+    "db:remote": "npm run db:sql && wrangler d1 execute logistics --remote --file=db/seed.sql",
+    "deploy": "npm run build && wrangler deploy",
+    "db:sql": "tsx db/seed.ts --emit-sql > db/seed.sql",
+    "db:preview": "npm run db:sql && wrangler d1 execute logistics --local --file=db/seed.sql"
   },
   "dependencies": {
     "react": "^18.3.1",

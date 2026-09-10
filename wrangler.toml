@@ -3,8 +3,12 @@ main = "worker/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-# The SPA build output. Worker routes take /api/*, everything else is static.
-assets = { directory = "dist", not_found_handling = "single-page-application" }
+# The SPA build output. Assets are matched first; anything with no matching
+# file falls through to the Worker, which takes /api/* and hands everything
+# else back to the asset router. not_found_handling only applies through the
+# binding — it is NOT applied automatically when `main` is set, so without the
+# explicit fallback in worker/index.ts a deep link 404s.
+assets = { directory = "dist", binding = "ASSETS", not_found_handling = "single-page-application" }
 
 [[d1_databases]]
 binding = "DB"

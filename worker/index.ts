@@ -21,6 +21,9 @@ import { writeLog } from './log.ts';
 
 export interface Env {
   DB: D1Database;
+  /** The static asset router. Assets are served before the Worker runs; this
+   *  binding exists so the Worker can hand non-API paths back to it. */
+  ASSETS: { fetch(request: Request): Promise<Response> };
   OPENROUTER_API_KEY?: string;
   OPENROUTER_MODEL?: string;
 }
@@ -34,7 +37,10 @@ const json = (body: unknown, status = 200) =>
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return new Response('Not found', { status: 404 });
+    // Anything that is not an API call is the SPA's problem. Handing it back
+    // to the asset router applies not_found_handling, so a deep link returns
+    // index.html rather than a 404.
+    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     const db = d1Database(env.DB);
     try {
       return await route(url.pathname, request, env, db);

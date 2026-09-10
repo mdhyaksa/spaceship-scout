@@ -18,16 +18,23 @@ npm run db:local        # CSV -> db/local.sqlite, for dev and tests
 npm test                # 64 tests, no API key needed
 ```
 
-Run it locally — two processes, because the Worker serves the API and Vite serves the SPA:
+Run it locally — two processes, because the Worker serves the API and Vite serves the SPA with hot reload:
 
 ```bash
 npx wrangler d1 execute logistics --local --file=db/schema.sql
-npx tsx db/seed.ts --emit-sql | npx wrangler d1 execute logistics --local --file=/dev/stdin
+npm run db:preview                       # seeds the local D1
 npx wrangler dev --local --port 8787     # terminal 1
 npm run dev                              # terminal 2, proxies /api to 8787
 ```
 
 Then open http://localhost:5173.
+
+To exercise the deployed shape instead — one process, the Worker serving both the API and the built SPA:
+
+```bash
+npm run build
+npx wrangler dev --local --port 8787     # http://127.0.0.1:8787
+```
 
 ### Environment variables
 
@@ -42,13 +49,41 @@ Without a key the dashboard, forecasts and explainability all still work — the
 
 ### Deploy
 
+One vendor, one account. Steps 1–4 are once per environment; step 5 is every deploy.
+
 ```bash
-npx wrangler d1 create logistics          # paste the id into wrangler.toml
+# 1. Authenticate (opens a browser)
+npx wrangler login
+
+# 2. Create the database, then paste the printed id into wrangler.toml
+#    over REPLACE_AFTER_wrangler_d1_create
+npx wrangler d1 create logistics
+
+# 3. Create the schema and load the 400 rows
 npx wrangler d1 execute logistics --remote --file=db/schema.sql
-npx tsx db/seed.ts --emit-sql | npx wrangler d1 execute logistics --remote --file=/dev/stdin
+npm run db:remote
+
+# 4. Store the planner key as a secret — never a var, never in the repo
 npx wrangler secret put OPENROUTER_API_KEY
+
+# 5. Build and deploy
 npm run deploy
 ```
+
+`npm run deploy` builds the semantic layer, typechecks, builds the SPA and runs `wrangler deploy`. The Worker serves `/api/*` and hands every other path to the static asset router, so one deployment covers both.
+
+Verify the result:
+
+```bash
+curl https://<your-worker>.workers.dev/api/layer
+curl -X POST https://<your-worker>.workers.dev/api/tiles \
+  -H 'content-type: application/json' -d '{"filters":[],"period":"all"}'
+```
+
+Two things that are easy to get wrong, both found by trying them:
+
+- **`wrangler d1 execute --file` cannot read a pipe.** `--file=/dev/stdin` fails with `EAGAIN: resource temporarily unavailable`, which is why `npm run db:sql` writes `db/seed.sql` first. That file is gitignored — it is derived from the CSV.
+- **`not_found_handling` does not apply on its own when `main` is set.** Unmatched paths fall through to the Worker, so `worker/index.ts` hands non-API requests back to `env.ASSETS`. Without that, a deep link returns 404 instead of the SPA.
 
 ---
 
