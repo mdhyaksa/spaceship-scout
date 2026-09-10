@@ -9,5 +9,7 @@ OPENROUTER_MODEL=google/gemini-3.8-flash
 # both are set. Vite reads the same two values and attaches them to proxied
 # API calls, so the dev server works without a browser prompt.
 # Values are shared out of band — never commit them.
+# `wrangler dev` reads this file once at startup: restart it after editing,
+# or the Worker keeps comparing against the previous values.
 AUTH_USER=
 AUTH_PASSWORD=

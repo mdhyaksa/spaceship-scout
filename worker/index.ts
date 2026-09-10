@@ -66,7 +66,17 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
   if (!ok) {
     // One message for both wrong user and wrong password: naming which was
     // wrong tells an attacker which half to keep.
-    return json({ error: 'That username and password did not match.' }, 401);
+    //
+    // Local development gets one extra sentence, because there the likeliest
+    // cause is not a typo: `wrangler dev` reads .dev.vars once at startup, so
+    // editing the password without restarting leaves the Worker comparing
+    // against the old one and the message above is actively misleading. The
+    // hint is a fixed string and only ever appears on localhost.
+    const local = ['localhost', '127.0.0.1'].includes(new URL(request.url).hostname);
+    return json({
+      error: 'That username and password did not match.' +
+        (local ? ' If you just edited .dev.vars, restart `npm run dev:api` — it is read once at startup.' : ''),
+    }, 401);
   }
 
   const token = await createSession(env.AUTH_USER, env.AUTH_PASSWORD);

@@ -51,6 +51,8 @@ Credentials are **not in this repository**. They are shared with the submission,
 
 **What is gated is the API**, which is where the data is. The SPA shell is served to anyone — it is a static bundle carrying no metric definitions, thresholds or glossary, because those stay in the Worker. That is deliberate: it is what lets the login be a page in the app, identical on `:5173`, on `:8787` and in production, rather than the browser's own credential dialog, which cannot be styled, cannot say what it is guarding, and offers no way to sign out.
 
+> **Restart `npm run dev:api` after editing `.dev.vars`.** Wrangler reads it once at startup, so a changed password is ignored by the running Worker and sign-in fails with what looks like a wrong password. Locally the error message says so.
+
 Rotating the password invalidates every existing session at once, since it is the signing key. There is no server-side session store, so sessions cannot be revoked individually — acceptable for one shared credential, and among the things real per-user auth would change.
 
 **This is a gate, not an identity system.** One shared credential means the app knows someone is allowed in, never who they are — see Limitations.
